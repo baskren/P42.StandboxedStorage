@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://xamarin.com/schemas/2014/forms"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:d="http://xamarin.com/schemas/2014/forms/design"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    x:Class="StorageSample.MainPage">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <!-- Place new controls here -->
+        <Button
+            x:Name="FilePicker"
+            Text="Pick File"
+            HorizontalOptions="Center"
+            VerticalOptions="Center"
+            TextColor="White"
+            BackgroundColor="Blue"
+            Padding="10,0"
+            Clicked="FilePicker_Clicked"
+            />
+        <Button
+            x:Name="SaveFile"
+            Text="Save File"
+            HorizontalOptions="Center"
+            VerticalOptions="Center"
+            TextColor="White"
+            BackgroundColor="Blue"
+            Padding="10,0"
+            Clicked="SaveFile_Clicked"
+            Grid.Row="1"
+            />
+        <Button
+            x:Name="FolderPicker"
+            Text="Pick Folder"
+            HorizontalOptions="Center"
+            VerticalOptions="Center"
+            TextColor="White"
+            BackgroundColor="Blue"
+            Padding="10,0"
+            Clicked="FolderPicker_Clicked"
+            Grid.Row="2"
+            />
+    </Grid>
+</ContentPage>
