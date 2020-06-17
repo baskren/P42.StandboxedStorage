@@ -72,8 +72,8 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Storage\P42.Storage.csproj">
-      <Project>{EE1CDF55-62F3-4267-9A90-5C2F2785D35E}</Project>
+    <ProjectReference Include="..\P42.Storage\P42.Storage.csproj">
+      <Project>{300BC454-4BBB-4D76-92A9-828A2EB4C23D}</Project>
       <Name>P42.Storage</Name>
     </ProjectReference>
   </ItemGroup>

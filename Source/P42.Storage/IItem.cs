@@ -48,12 +48,12 @@ namespace P42.Storage
         /// <summary>
         /// Gets the timestamp of the last time the file was modified.
         /// </summary>
-        public DateTimeOffset DateModified { get; }
+        DateTimeOffset DateModified { get; }
 
         /// <summary>
         /// Gets the size of the file in bytes.
         /// </summary>
-        public ulong Size { get; }
+        ulong Size { get; }
 
         /// <summary>
         /// Gets the name of the item including the file name extension if there is one.

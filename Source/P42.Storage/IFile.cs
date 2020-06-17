@@ -28,7 +28,7 @@ namespace P42.Storage
             if (string.IsNullOrWhiteSpace(path))
                 throw new ArgumentNullException("path");
 
-            return PlatformDelegate.GetFileFromPathAsync?.Invoke(path) ?? Task.FromResult<IStorageFile>(null);
+            return PlatformDelegate.GetFileFromPathAsync?.Invoke(path) ?? Task.FromResult<IStorageFile>(default);
         }
 
         /*
