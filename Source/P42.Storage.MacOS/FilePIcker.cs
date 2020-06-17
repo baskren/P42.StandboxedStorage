@@ -21,8 +21,10 @@ namespace P42.Storage.Native
 
             panel.RunModal(fileTypes?.ToArray() ?? new string[] { UTType.Content, UTType.Item, "public.data" });
 
-            System.Diagnostics.Debug.WriteLine("panel.Url.Path: " + panel.Url.Path);
+            if (panel.Url is null)
+                return Task.FromResult<IStorageFile>(null);
 
+            System.Diagnostics.Debug.WriteLine("panel.Url.Path: " + panel.Url.Path);
             return Task.FromResult<IStorageFile>(new StorageFile(panel.Url));
         }
 

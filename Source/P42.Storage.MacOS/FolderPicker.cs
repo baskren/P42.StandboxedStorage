@@ -18,10 +18,11 @@ namespace P42.Storage.Native
 
             panel.RunModal();
 
+            if (panel.Url is null)
+                return Task.FromResult<IStorageFolder>(null);
+
             System.Diagnostics.Debug.WriteLine("panel.Url.Path: " + panel.Url.Path);
-
             return Task.FromResult<IStorageFolder>(new StorageFolder(panel.Url));
-
         }
     }
 }
