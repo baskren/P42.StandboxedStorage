@@ -16,6 +16,7 @@ namespace P42.Storage
     /// </summary>
     public interface IStorageFile : IStorageItem
     {
+        /* Waiting for UWP to support .NetStandard 2.1 + C#8
         /// <summary>
         /// Gets a StorageFile object to represent the file at the specified path.
         /// </summary>
@@ -30,6 +31,7 @@ namespace P42.Storage
 
             return PlatformDelegate.GetFileFromPathAsync?.Invoke(path) ?? Task.FromResult<IStorageFile>(default);
         }
+        */
 
         /*
         public static Task<bool> Exists(string path)
@@ -42,6 +44,22 @@ namespace P42.Storage
         }
         */
 
+        #region Properties
+        /// <summary>
+        /// Gets the MIME type of the contents of the file.
+        /// </summary>
+        /// <value>The MIME type of the file contents.
+        /// For example, a music file might have the "audio/mpeg" MIME type.</value>
+        string ContentType { get; }
+
+        /// <summary>
+        /// Gets the type (file name extension) of the file.
+        /// </summary>
+        string FileType { get; }
+        #endregion
+
+
+        #region Methods
         /// <summary>
         /// Replaces the specified file with a copy of the current file.
         /// </summary>
@@ -103,20 +121,8 @@ namespace P42.Storage
         /// <param name="option">The enum value that determines how the system responds if the desiredName is the same as the name of an existing item in the current file's location.</param>
         /// <returns>No object or value is returned by this method when it completes.</returns>
         Task RenameAsync(string desiredName, NameCollisionOption option);
+        #endregion
 
-        /// <summary>
-        /// Gets the MIME type of the contents of the file.
-        /// </summary>
-        /// <value>The MIME type of the file contents.
-        /// For example, a music file might have the "audio/mpeg" MIME type.</value>
-        string ContentType { get; }
-
-        /// <summary>
-        /// Gets the type (file name extension) of the file.
-        /// </summary>
-        string FileType { get; }
-
-        FileAttributes Attributes { get; }
 
 
     }

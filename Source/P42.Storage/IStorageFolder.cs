@@ -16,6 +16,7 @@ namespace P42.Storage
     /// </summary>
     public interface IStorageFolder : IStorageItem
     {
+        /* Waiting for UWP to support .NetStandard 2.1 + C# 8
         /// <summary>
         /// Gets an IStorageFile object to represent the file at the specified path.
         /// </summary>
@@ -30,6 +31,9 @@ namespace P42.Storage
 
             return PlatformDelegate.GetFolderFromPathAsync?.Invoke(path) ?? Task.FromResult<IStorageFolder>(null);
         }
+        */
+
+        #region Methods
 
         /// <summary>
         /// Creates a new file in the current folder.
@@ -106,5 +110,7 @@ namespace P42.Storage
         /// <param name="name">The name (or path relative to the current folder) of the file or sub-folder to try to retrieve.</param>
         /// <returns>When this method completes successfully, it returns the file or folder (type <see cref="IStorageItem"/>).</returns>
         Task<IStorageItem> TryGetItemAsync(string name);
+        #endregion
+
     }
 }

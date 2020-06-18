@@ -13,32 +13,23 @@ namespace P42.Storage
     /// <summary>
     /// Manipulates storage items (files and folders) and their contents, and provides information about them.
     /// </summary>
-    public interface IStorageItem
+    public interface IStorageItem 
     {
+        #region Properties
         /// <summary>
-        /// Deletes the current item. 
+        /// Gets the name of the item including the file name extension if there is one.
         /// </summary>
-        /// <returns></returns>
-        Task DeleteAsync();
+        string Name { get; }
 
         /// <summary>
-        /// Deletes the current item, optionally deleting it permanently. 
+        /// Gets the full file-system path of the item, if the item has a path.
         /// </summary>
-        /// <returns></returns>
-        Task DeleteAsync(StorageDeleteOption option);
+        string Path { get; }
 
         /// <summary>
-        /// Determines whether the current IStorageItem matches the specified StorageItemTypes value.
+        /// Gets the size of the file in bytes.
         /// </summary>
-        /// <param name="type">The value to match against.</param>
-        /// <returns></returns>
-        /// <seealso cref="StorageItemTypes"/>
-        bool IsOfType(StorageItemTypes type);
-
-        /// <summary>
-        /// Gets the attributes of a storage item.
-        /// </summary>
-        FileAttributes Attributes { get; }
+        ulong Size { get; }
 
         /// <summary>
         /// Gets the date and time when the current item was created. 
@@ -51,20 +42,13 @@ namespace P42.Storage
         DateTimeOffset DateModified { get; }
 
         /// <summary>
-        /// Gets the size of the file in bytes.
+        /// Gets the attributes of a storage item.
         /// </summary>
-        ulong Size { get; }
+        FileAttributes Attributes { get; }
+        #endregion
 
-        /// <summary>
-        /// Gets the name of the item including the file name extension if there is one.
-        /// </summary>
-        string Name { get; }
 
-        /// <summary>
-        /// Gets the full file-system path of the item, if the item has a path.
-        /// </summary>
-        string Path { get; }
-
+        #region Methods
         /// <summary>
         /// Gets the parent folder of the current storage item.
         /// </summary>
@@ -77,5 +61,27 @@ namespace P42.Storage
         /// <param name="item">The <see cref="IStorageItem"/> object that represents a storage item to compare against.</param>
         /// <returns>Returns true if the current storage item is the same as the specified storage item; otherwise false.</returns>
         bool IsEqual(IStorageItem item);
+
+        /// <summary>
+        /// Determines whether the current IStorageItem matches the specified StorageItemTypes value.
+        /// </summary>
+        /// <param name="type">The value to match against.</param>
+        /// <returns></returns>
+        /// <seealso cref="StorageItemTypes"/>
+        bool IsOfType(StorageItemTypes type);
+
+        /// <summary>
+        /// Deletes the current item. 
+        /// </summary>
+        /// <returns></returns>
+        Task DeleteAsync();
+
+        /// <summary>
+        /// Deletes the current item, optionally deleting it permanently. 
+        /// </summary>
+        /// <returns></returns>
+        Task DeleteAsync(StorageDeleteOption option);
+
+        #endregion
     }
 }
