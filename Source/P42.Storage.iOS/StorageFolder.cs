@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Foundation;
 
@@ -31,7 +32,7 @@ namespace P42.Storage.Native
     /// <item><term>Windows Phone Silverlight</term><description>Windows Phone 8.0 or later</description></item>
     /// <item><term>Windows (Desktop Apps)</term><description>Windows 7 or later</description></item></list>
     /// </remarks>
-    public sealed class StorageFolder : StorageItem, IStorageFolder
+    class StorageFolder : StorageItem, IStorageFolder
     {
         // PIZZA
 
@@ -190,15 +191,28 @@ namespace P42.Storage.Native
         /// Gets the files in the current folder.
         /// </summary>
         /// <returns></returns>
-        public Task<IReadOnlyList<IStorageFile>> GetFilesAsync()
+        public Task<IReadOnlyList<IStorageFile>> GetFilesAsync(string pattern = null)
         {
             return Task.Run<IReadOnlyList<IStorageFile>>(() =>
             {
                 List<IStorageFile> files = new List<IStorageFile>();
 
+                string regex = null;
+                if (!string.IsNullOrWhiteSpace(pattern))
+                {
+                    regex = P42.Storage.StringExtensions.WildcardToRegex(pattern);
+                }
+
+
                 foreach (string filename in Directory.GetFiles(Path))
                 {
-                    files.Add(new StorageFile(System.IO.Path.Combine(Path, filename)));
+                    if (!string.IsNullOrWhiteSpace(regex))
+                    {
+                        if (Regex.IsMatch(filename, regex))
+                            files.Add(new StorageFile(System.IO.Path.Combine(Path, filename)));
+                    }
+                    else
+                        files.Add(new StorageFile(System.IO.Path.Combine(Path, filename)));
                 }
                 return files.AsReadOnly();
             });

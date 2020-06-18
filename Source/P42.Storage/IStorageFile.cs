@@ -6,6 +6,7 @@
 // Refactored for cross platform .NetStandard library structure in 2020 by 42ndParallel.
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace P42.Storage
@@ -121,6 +122,42 @@ namespace P42.Storage
         /// <param name="option">The enum value that determines how the system responds if the desiredName is the same as the name of an existing item in the current file's location.</param>
         /// <returns>No object or value is returned by this method when it completes.</returns>
         Task RenameAsync(string desiredName, NameCollisionOption option);
+        #endregion
+
+
+        #region System.IO.File
+        void AppendAllLines(IEnumerable<string> lines);
+
+        Task AppendAllLinesAsync(IEnumerable<string> lines, System.Threading.CancellationToken cancellationToken = default);
+
+        void AppendAllText(string contents);
+
+        Task AppendAllTextAsync(string contents, System.Threading.CancellationToken cancellationToken = default);
+
+        byte[] ReadAllBytes();
+
+        Task<byte[]> ReadAllBytesAsync(System.Threading.CancellationToken cancellationToken = default);
+
+        string[] ReadAllLines();
+
+        Task<string[]> ReadAllLinesAsync(System.Threading.CancellationToken cancellationToken = default);
+
+        string ReadAllText();
+
+        Task<string> ReadAllTextAsync(System.Threading.CancellationToken cancellationToken = default);
+
+        void WriteAllBytes(byte[] bytes);
+
+        Task WriteAllBytesAsync(byte[] bytes, System.Threading.CancellationToken cancellationToken = default);
+
+        void WriteAllLines(IEnumerable<string> content);
+
+        Task WriteAllLinesAsync(IEnumerable<string> content, System.Threading.CancellationToken cancellationToken = default);
+
+        void WriteAllText(string content);
+
+        Task WriteAllTextAsync(string content, System.Threading.CancellationToken cancellationToken = default);
+
         #endregion
 
 

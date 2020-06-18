@@ -76,7 +76,7 @@ namespace P42.Storage
         /// Gets the files from the current folder.
         /// </summary>
         /// <returns></returns>
-        Task<IReadOnlyList<IStorageFile>> GetFilesAsync();
+        Task<IReadOnlyList<IStorageFile>> GetFilesAsync(string pattern = null);
 
         /// <summary>
         /// Gets the specified folder from the current folder.

@@ -6,7 +6,7 @@ using Foundation;
 
 namespace P42.Storage.Native
 {
-    public class StorageItem
+    class StorageItem
     {
         private static NSData BookmarkForUrl(NSUrl url)
         {

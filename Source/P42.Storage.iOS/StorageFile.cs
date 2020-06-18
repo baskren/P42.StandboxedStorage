@@ -5,9 +5,10 @@ using System.IO;
 using System.Threading.Tasks;
 using Foundation;
 
+
 namespace P42.Storage.Native
 {
-    public sealed class StorageFile : StorageItem, IStorageFile
+    class StorageFile : StorageItem, IStorageFile
     {
         /// <summary>
         /// Gets a StorageFile object to represent the file at the specified path.
@@ -16,7 +17,7 @@ namespace P42.Storage.Native
         /// If your path uses slashes, make sure you use backslashes(\).
         /// Forward slashes(/) are not accepted by this method.</param>
         /// <returns>When this method completes, it returns the file as a StorageFile.</returns>
-        internal static Task<IStorageFile> GetFileFromPathAsync(string path)
+        public static Task<IStorageFile> GetFileFromPathAsync(string path)
         {
             if (string.IsNullOrEmpty(path))
             {
@@ -27,42 +28,43 @@ namespace P42.Storage.Native
             return Task.FromResult<IStorageFile>(new StorageFile(url));
         }
 
+        #region Properties
+        public string ContentType
+        {
+            get
+            {
+                string mime = string.Empty;
+
+                var tag = FileType.ToLower();
+
+                string utref = MobileCoreServices.UTType.CreatePreferredIdentifier(MobileCoreServices.UTType.TagClassFilenameExtension, tag, null);
+                if (!string.IsNullOrEmpty(utref))
+                    mime = MobileCoreServices.UTType.GetPreferredTag(utref, MobileCoreServices.UTType.TagClassMIMEType);
+                return mime;
+            }
+        }
+
+        public string FileType
+            => Url?.PathExtension;
+        #endregion
 
 
-
+        #region Constructors
         public StorageFile(string path) : base(path) { }
 
         public StorageFile(NSUrl url) : base(url) { }
+        #endregion
 
 
         #region IStorageFile
-        /// <summary>
-        /// Replaces the specified file with a copy of the current file.
-        /// </summary>
-        /// <param name="fileToReplace"></param>
-        /// <returns></returns>
         public Task CopyAndReplaceAsync(IStorageFile fileToReplace)
         //    => Task.Run(() => { File.Replace(Path, fileToReplace.Path, null); });
             => CopyAsync(fileToReplace.GetParentAsync().Result, fileToReplace.Name);
 
 
-        /// <summary>
-        /// Creates a copy of the file in the specified folder.
-        /// </summary>
-        /// <param name="destinationFolder">The destination folder where the copy of the file is created.</param>
-        /// <returns></returns>
         public Task<IStorageFile> CopyAsync(IStorageFolder destinationFolder)
-        //  => CopyAsync(destinationFolder, System.IO.Path.GetFileName(Path));
             => CopyAsync(destinationFolder, Name);
 
-
-
-        /// <summary>
-        /// Creates a copy of the file in the specified folder and renames the copy.
-        /// </summary>
-        /// <param name="destinationFolder">The destination folder where the copy of the file is created.</param>
-        /// <param name="desiredNewName">The new name for the copy of the file created in the destinationFolder.</param>
-        /// <returns></returns>
         public Task<IStorageFile> CopyAsync(IStorageFolder destinationFolder, string desiredNewName)
 
         => Task.Run<IStorageFile>(() =>
@@ -92,13 +94,8 @@ namespace P42.Storage.Native
         });
 
 
-        /// <summary>
-        /// Moves the current file to the location of the specified file and replaces the specified file in that location.
-        /// </summary>
-        /// <param name="fileToReplace">The file to replace.</param>
-        /// <returns>No object or value is returned by this method.</returns>
         public Task MoveAndReplaceAsync(IStorageFile fileToReplace)
-            => Task.Run(async () =>
+            => Task.Run(() =>
             {
                 if (fileToReplace is StorageFile file &&
                     file.Url is NSUrl fileUrl &&
@@ -124,21 +121,9 @@ namespace P42.Storage.Native
                 return Task.CompletedTask;
             });
 
-        /// <summary>
-        /// Moves the current file to the specified folder and renames the file according to the desired name.
-        /// </summary>
-        /// <param name="destinationFolder">The destination folder where the file is moved.</param>
-        /// <returns></returns>
         public Task MoveAsync(IStorageFolder destinationFolder)
             => MoveAsync(destinationFolder, Name);
 
-
-        /// <summary>
-        /// Moves the current file to the specified folder and renames the file according to the desired name.
-        /// </summary>
-        /// <param name="destinationFolder">The destination folder where the file is moved.</param>
-        /// <param name="desiredNewName">The desired name of the file after it is moved.</param>
-        /// <returns></returns>
         public Task MoveAsync(IStorageFolder destinationFolder, string desiredNewName)
             => Task.Run(() =>
             { 
@@ -166,47 +151,53 @@ namespace P42.Storage.Native
                 return null;
             });
 
-        /// <summary>
-        /// Gets the MIME type of the contents of the file.
-        /// </summary>
-        /// <remarks>
-        /// <para/><list type="table">
-        /// <listheader><term>Platform</term><description>Version supported</description></listheader>
-        /// <item><term>iOS</term><description>iOS 9.0 and later</description></item>
-        /// <item><term>tvOS</term><description>tvOS 9.0 and later</description></item>
-        /// <item><term>Tizen</term><description>Tizen 3.0</description></item>
-        /// <item><term>Windows UWP</term><description>Windows 10</description></item>
-        /// <item><term>Windows Store</term><description>Windows 8.1 or later</description></item>
-        /// <item><term>Windows Phone Store</term><description>Windows Phone 8.1 or later</description></item>
-        /// <item><term>Windows Phone Silverlight</term><description>Windows Phone 8.0 or later</description></item>
-        /// </list>
-        /// </remarks>
-        public string ContentType
+        public Task RenameAsync(string desiredName)
+            => RenameAsync(desiredName, NameCollisionOption.FailIfExists);
+
+        public async Task RenameAsync(string desiredName, NameCollisionOption option)
         {
-            get
+            if (string.IsNullOrEmpty(desiredName))
             {
-                string mime = string.Empty;
-
-                var tag = FileType.ToLower();
-
-                string utref = MobileCoreServices.UTType.CreatePreferredIdentifier(MobileCoreServices.UTType.TagClassFilenameExtension, tag, null);
-                if (!string.IsNullOrEmpty(utref))
-                    mime = MobileCoreServices.UTType.GetPreferredTag(utref, MobileCoreServices.UTType.TagClassMIMEType);
-                return mime;
+                throw new ArgumentNullException("desiredName");
             }
+            string folder = System.IO.Path.GetDirectoryName(Path);
+            string newPath = System.IO.Path.Combine(folder, desiredName);
+            var newUrl = NSUrl.CreateFileUrl(newPath, null);
+
+            switch (option)
+            {
+
+                case NameCollisionOption.GenerateUniqueName:
+                    string generatedPath = newPath;
+                    int num = 2;
+                    while (File.Exists(generatedPath))
+                    {
+                        generatedPath = System.IO.Path.Combine(folder, System.IO.Path.GetFileNameWithoutExtension(desiredName), string.Format("({0})", num), System.IO.Path.GetExtension(desiredName));
+                        num++;
+                    }
+                    newPath = generatedPath;
+                    break;
+
+                case NameCollisionOption.ReplaceExisting:
+                    if (NSFileManager.DefaultManager.FileExists(newPath))
+                    {
+                        if (!NSFileManager.DefaultManager.Remove(newPath, out NSError error))
+                        {
+                            Console.WriteLine("Cannot delete file [" + newUrl.Path + "].");
+                            Console.WriteLine("ERROR: " + error);
+                        }
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+
+            await MoveAsync(await GetParentAsync(), System.IO.Path.GetFileName(newPath));
         }
-
-        /// <summary>
-        /// Gets the type (file name extension) of the file.
-        /// </summary>
-        public string FileType
-            => Url?.PathExtension;
-
         #endregion
 
 
-        #region IStorageItem
-        #endregion
 
 
         /*
@@ -241,70 +232,180 @@ namespace P42.Storage.Native
         */
 
 
-
-        /// <summary>
-        /// Renames the current file.
-        /// </summary>
-        /// <param name="desiredName">The desired, new name of the current item.</param>
-        /// <returns>No object or value is returned by this method when it completes.</returns>
-        public Task RenameAsync(string desiredName)
-            => RenameAsync(desiredName, NameCollisionOption.FailIfExists);
-        
-
-        /// <summary>
-        /// Renames the current file.
-        /// This method also specifies what to do if an existing item in the current file's location has the same name.
-        /// </summary>
-        /// <param name="desiredName">The desired, new name of the current file.
-        /// <para>If there is an existing item in the current file's location that already has the specified desiredName, the specified <see cref="NameCollisionOption"/>  determines how the system responds to the conflict.</para></param>
-        /// <param name="option">The enum value that determines how the system responds if the desiredName is the same as the name of an existing item in the current file's location.</param>
-        /// <returns>No object or value is returned by this method when it completes.</returns>
-        public async Task RenameAsync(string desiredName, NameCollisionOption option)
+        public void AppendAllLines(IEnumerable<string> lines)
         {
-            if (string.IsNullOrEmpty(desiredName))
+            if (Url is NSUrl url)
             {
-                throw new ArgumentNullException("desiredName");
+                url.StartAccessingSecurityScopedResource();
+                File.AppendAllLines(url.Path, lines);
+                url.StopAccessingSecurityScopedResource();
             }
-            string folder = System.IO.Path.GetDirectoryName(Path);
-            string newPath = System.IO.Path.Combine(folder, desiredName);
-            var newUrl = NSUrl.CreateFileUrl(newPath, null);
+        }
 
-            switch (option)
+        public async Task AppendAllLinesAsync(IEnumerable<string> lines, System.Threading.CancellationToken cancellationToken = default)
+        {
+            if (Url is NSUrl url)
             {
-
-                case NameCollisionOption.GenerateUniqueName:
-                    string generatedPath = newPath;
-                    int num = 2;
-                    while (File.Exists(generatedPath))
-                    {
-                        generatedPath = System.IO.Path.Combine(folder, System.IO.Path.GetFileNameWithoutExtension(desiredName), string.Format("({0})", num), System.IO.Path.GetExtension(desiredName));
-                        num++;
-                    }
-                    newPath = generatedPath;
-                    break;
-
-                case NameCollisionOption.ReplaceExisting:
-                    if (NSFileManager.DefaultManager.FileExists(newPath))
-                    {
-                        if (!NSFileManager.DefaultManager.Remove(newPath, out NSError error))
-                        {
-                            Console.WriteLine("Cannot delete file [" + newUrl.Path + "].");
-                            Console.WriteLine("ERROR: " + error);
-                        }
-                    }                        
-                    break;
-
-                default:
-                    break;
+                url.StartAccessingSecurityScopedResource();
+                await File.AppendAllLinesAsync(url.Path, lines, cancellationToken);
+                url.StopAccessingSecurityScopedResource();
             }
+        }
 
-            await MoveAsync(await GetParentAsync(), System.IO.Path.GetFileName(newPath));
+        public void AppendAllText(string contents)
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                File.AppendAllText(url.Path, contents);
+                url.StopAccessingSecurityScopedResource();
+            }
+        }
+
+        public async Task AppendAllTextAsync(string contents, System.Threading.CancellationToken cancellationToken = default)
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                await File.AppendAllTextAsync(url.Path, contents, cancellationToken);
+                url.StopAccessingSecurityScopedResource();
+            }
         }
 
 
 
 
+        public byte[] ReadAllBytes()
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                var bytes = File.ReadAllBytes(url.Path);
+                url.StopAccessingSecurityScopedResource();
+                return bytes;
+            }
+            return null;
+        }
 
+        public async Task<byte[]> ReadAllBytesAsync(System.Threading.CancellationToken cancellationToken = default)
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                var bytes = await File.ReadAllBytesAsync(url.Path, cancellationToken);
+                url.StopAccessingSecurityScopedResource();
+                return bytes;
+            }
+            return null;
+        }
+
+        public string[] ReadAllLines()
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                var lines = File.ReadAllLines(url.Path);
+                url.StopAccessingSecurityScopedResource();
+                return lines;
+            }
+            return null;
+        }
+
+        public async Task<string[]> ReadAllLinesAsync(System.Threading.CancellationToken cancellationToken = default)
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                var lines = await File.ReadAllLinesAsync(url.Path, cancellationToken);
+                url.StopAccessingSecurityScopedResource();
+                return lines;
+            }
+            return null;
+        }
+
+        public string ReadAllText()
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                var content = File.ReadAllText(url.Path);
+                url.StopAccessingSecurityScopedResource();
+                return content;
+            }
+            return null;
+        }
+
+        public async Task<string> ReadAllTextAsync(System.Threading.CancellationToken cancellationToken = default)
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                var content = await File.ReadAllTextAsync(url.Path, cancellationToken);
+                url.StopAccessingSecurityScopedResource();
+                return content;
+            }
+            return null;
+        }
+
+        public void WriteAllBytes(byte[] bytes)
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                File.WriteAllBytes(url.Path, bytes);
+                url.StopAccessingSecurityScopedResource();
+            }
+        }
+
+        public async Task WriteAllBytesAsync(byte[] bytes, System.Threading.CancellationToken cancellationToken = default)
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                await File.WriteAllBytesAsync(url.Path, bytes, cancellationToken);
+                url.StopAccessingSecurityScopedResource();
+            }
+        }
+
+        public void WriteAllLines(IEnumerable<string> content)
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                File.WriteAllLines(url.Path, content);
+                url.StopAccessingSecurityScopedResource();
+            }
+        }
+
+        public async Task WriteAllLinesAsync(IEnumerable<string> content, System.Threading.CancellationToken cancellationToken = default)
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                await File.WriteAllLinesAsync(url.Path, content, cancellationToken);
+                url.StopAccessingSecurityScopedResource();
+            }
+        }
+
+        public void WriteAllText(string content)
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                File.WriteAllText(url.Path, content);
+                url.StopAccessingSecurityScopedResource();
+            }
+        }
+
+        public async Task WriteAllTextAsync(string content, System.Threading.CancellationToken cancellationToken = default)
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                await File.WriteAllTextAsync(url.Path, content, cancellationToken);
+                url.StopAccessingSecurityScopedResource();
+            }
+        }
 
     }
 }
