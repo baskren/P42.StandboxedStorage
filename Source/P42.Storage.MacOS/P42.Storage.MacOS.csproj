@@ -70,6 +70,7 @@
     <Compile Include="..\P42.Storage.iOS\StorageFile.cs">
       <Link>StorageFile.cs</Link>
     </Compile>
+    <Compile Include="StorageFileStream.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\P42.Storage\P42.Storage.csproj">

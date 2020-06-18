@@ -273,6 +273,19 @@ namespace P42.Storage.Native
         }
 
 
+        public IStorageFileStream Open(System.IO.FileMode mode, System.IO.FileAccess access = FileAccess.ReadWrite, System.IO.FileShare share = FileShare.None)
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                if (File.Open(Url.Path, mode, access, share) is System.IO.FileStream fileStream)
+                    return new StorageFileStream(this, fileStream);
+                url.StopAccessingSecurityScopedResource();
+            }
+            return null;
+        }
+
+
 
 
         public byte[] ReadAllBytes()
