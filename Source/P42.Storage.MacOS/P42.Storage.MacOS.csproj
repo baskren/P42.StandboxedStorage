@@ -71,6 +71,7 @@
       <Link>StorageFile.cs</Link>
     </Compile>
     <Compile Include="StorageFileStream.cs" />
+    <Compile Include="StorageFileStreamReader.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\P42.Storage\P42.Storage.csproj">

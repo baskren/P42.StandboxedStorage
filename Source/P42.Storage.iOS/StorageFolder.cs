@@ -193,7 +193,7 @@ namespace P42.Storage.Native
         /// <returns></returns>
         public Task<IReadOnlyList<IStorageFile>> GetFilesAsync(string pattern = null)
         {
-            return Task.Run<IReadOnlyList<IStorageFile>>(() =>
+            //return Task.Run<IReadOnlyList<IStorageFile>>(() =>
             {
                 List<IStorageFile> files = new List<IStorageFile>();
 
@@ -214,8 +214,10 @@ namespace P42.Storage.Native
                     else
                         files.Add(new StorageFile(System.IO.Path.Combine(Path, filename)));
                 }
-                return files.AsReadOnly();
-            });
+                var result = files.AsReadOnly();
+                return Task.FromResult<IReadOnlyList<IStorageFile>>(result);
+            }
+            //);
         }
 
         /// <summary>

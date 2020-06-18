@@ -134,7 +134,13 @@ namespace P42.Storage
 
         Task AppendAllTextAsync(string contents, System.Threading.CancellationToken cancellationToken = default);
 
-        IStorageFileStream Open(System.IO.FileMode mode, System.IO.FileAccess access = System.IO.FileAccess.ReadWrite, System.IO.FileShare share = System.IO.FileShare.None);
+        System.IO.FileStream Open(System.IO.FileMode mode, System.IO.FileAccess access = System.IO.FileAccess.ReadWrite, System.IO.FileShare share = System.IO.FileShare.None);
+
+        System.IO.FileStream OpenRead();
+
+        System.IO.StreamReader OpenText();
+
+        System.IO.FileStream OpenWrite();
 
         byte[] ReadAllBytes();
 

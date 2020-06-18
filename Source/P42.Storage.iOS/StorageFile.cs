@@ -66,8 +66,6 @@ namespace P42.Storage.Native
             => CopyAsync(destinationFolder, Name);
 
         public Task<IStorageFile> CopyAsync(IStorageFolder destinationFolder, string desiredNewName)
-
-        => Task.Run<IStorageFile>(() =>
         {
             if (destinationFolder is StorageFolder folder &&
                 folder.Url is NSUrl folderUrl &&
@@ -91,7 +89,7 @@ namespace P42.Storage.Native
                 url.StopAccessingSecurityScopedResource();
             }
             return null;
-        });
+        }
 
 
         public Task MoveAndReplaceAsync(IStorageFile fileToReplace)
@@ -273,18 +271,44 @@ namespace P42.Storage.Native
         }
 
 
-        public IStorageFileStream Open(System.IO.FileMode mode, System.IO.FileAccess access = FileAccess.ReadWrite, System.IO.FileShare share = FileShare.None)
+        public System.IO.FileStream Open(System.IO.FileMode mode, System.IO.FileAccess access = FileAccess.ReadWrite, System.IO.FileShare share = FileShare.None)
         {
             if (Url is NSUrl url)
             {
                 url.StartAccessingSecurityScopedResource();
-                if (File.Open(Url.Path, mode, access, share) is System.IO.FileStream fileStream)
-                    return new StorageFileStream(this, fileStream);
-                url.StopAccessingSecurityScopedResource();
+                return new StorageFileStream(this, Url.Path, mode, access, share);
             }
             return null;
         }
 
+        public System.IO.FileStream OpenRead()
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                return new StorageFileStream(this, Url.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            }
+            return null;
+        }
+
+        public System.IO.StreamReader OpenText()
+        {
+            if (OpenRead() is System.IO.FileStream fileStream)
+            {
+                return new StorageFileStreamReader(this, fileStream);
+            }
+            return null;
+        }
+
+        public System.IO.FileStream OpenWrite()
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                return new StorageFileStream(this, Url.Path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
+            }
+            return null;
+        }
 
 
 
