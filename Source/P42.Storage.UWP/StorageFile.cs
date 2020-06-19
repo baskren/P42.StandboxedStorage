@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Threading.Tasks;
 using P42.Storage;
 using Windows.Storage;
+using Windows.UI.Xaml;
 
 namespace P42.Storage.Native
 {
@@ -103,6 +106,14 @@ namespace P42.Storage.Native
             return null;
         }
 
+        public async Task MoveAndReplaceAsync(IStorageFile iFileToReplace)
+        {
+            if (_file != null &&
+                iFileToReplace is StorageFile fileToReplace &&
+                fileToReplace._file is Windows.Storage.StorageFile windowsFileToReplace)
+                await _file.MoveAndReplaceAsync(windowsFileToReplace);
+        }
+
         public async Task MoveAsync(IStorageFolder iDestinationFolder)
         {
             if (_file != null &&
@@ -121,14 +132,6 @@ namespace P42.Storage.Native
 
         }
 
-        public async Task MoveAndReplaceAsync(IStorageFile iFileToReplace)
-        {
-            if (_file != null &&
-                iFileToReplace is StorageFile fileToReplace &&
-                fileToReplace._file is Windows.Storage.StorageFile windowsFileToReplace)
-                await _file.MoveAndReplaceAsync(windowsFileToReplace);
-        }
-
         public async Task RenameAsync(string desiredName)
         {
             if (_file != null && !string.IsNullOrWhiteSpace(desiredName))
@@ -140,11 +143,95 @@ namespace P42.Storage.Native
             if (_file != null && !string.IsNullOrWhiteSpace(desiredName))
                 await _file.RenameAsync(desiredName, (Windows.Storage.NameCollisionOption)option);
         }
-
         #endregion
 
 
+        #region System.IO.File methods
+        public void AppendAllLines(IEnumerable<string> lines)
+            =>AppendAllLinesAsync(lines).RunSynchronously();
 
+        public Task AppendAllLinesAsync(IEnumerable<string> lines, System.Threading.CancellationToken cancellationToken = default)
+            => Windows.Storage.PathIO.AppendLinesAsync(_file.Path, lines, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
+
+        public void AppendAllText(string contents)
+            => AppendAllTextAsync(contents).RunSynchronously();
+
+        public Task AppendAllTextAsync(string contents, System.Threading.CancellationToken cancellationToken = default)
+            => Windows.Storage.PathIO.AppendTextAsync(_file.Path, contents, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
+
+        public FileStream Open(FileMode mode, FileAccess access = FileAccess.ReadWrite, FileShare share = FileShare.None)
+            => new FileStream(_file.Path, mode, access, share);
+
+        public FileStream OpenRead()
+            => new FileStream(_file.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        public StreamReader OpenText()
+        {
+            if (OpenRead() is System.IO.FileStream fileStream)
+            {
+                return new StreamReader(fileStream);
+            }
+            return null;
+        }
+
+        public FileStream OpenWrite()
+            => new FileStream(_file.Path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
+
+        public byte[] ReadAllBytes()
+        {
+            var task = ReadAllBytesAsync();
+            task.RunSynchronously();
+            return task.Result;
+        }
+
+        public async Task<byte[]> ReadAllBytesAsync(System.Threading.CancellationToken cancellationToken = default)
+        {
+            var buffer = await Windows.Storage.PathIO.ReadBufferAsync(_file.Path);
+            return buffer?.ToArray();
+        }
+
+        public string[] ReadAllLines()
+        {
+            var task = ReadAllLinesAsync();
+            task.RunSynchronously();
+            return task.Result;
+        }
+
+        public async Task<string[]> ReadAllLinesAsync(System.Threading.CancellationToken cancellationToken = default)
+        {
+            var result = await Windows.Storage.PathIO.ReadLinesAsync(_file.Path, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
+            return result.ToArray();
+        }
+
+        public string ReadAllText()
+        {
+            var task = ReadAllTextAsync();
+            task.RunSynchronously();
+            return task.Result;
+        }
+
+        public Task<string> ReadAllTextAsync(System.Threading.CancellationToken cancellationToken = default)
+            => Windows.Storage.PathIO.ReadTextAsync(_file.Path, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
+
+        public void WriteAllBytes(byte[] bytes)
+            => WriteAllBytesAsync(bytes).RunSynchronously();
+
+        public Task WriteAllBytesAsync(byte[] bytes, System.Threading.CancellationToken cancellationToken = default)
+            => Windows.Storage.PathIO.WriteBytesAsync(_file.Path, bytes).AsTask(cancellationToken);
+
+        public void WriteAllLines(IEnumerable<string> content)
+            => WriteAllLinesAsync(content).RunSynchronously();
+
+        public Task WriteAllLinesAsync(IEnumerable<string> lines, System.Threading.CancellationToken cancellationToken = default)
+            => Windows.Storage.PathIO.WriteLinesAsync(_file.Path, lines, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
+
+        public void WriteAllText(string content)
+            => WriteAllTextAsync(content).RunSynchronously();
+
+        public Task WriteAllTextAsync(string content, System.Threading.CancellationToken cancellationToken = default)
+            => Windows.Storage.PathIO.WriteTextAsync(_file.Path, content, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
+
+        #endregion
 
 
 

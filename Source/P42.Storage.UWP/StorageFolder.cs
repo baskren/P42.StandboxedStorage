@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace P42.Storage.Native
@@ -39,6 +40,7 @@ namespace P42.Storage.Native
         #endregion
 
         #region Methods
+
         public static async Task<IStorageFolder> GetFolderFromPathAsync(string path)
         {
             if (await Windows.Storage.StorageFolder.GetFolderFromPathAsync(path) is Windows.Storage.StorageFolder windowsFolder)
@@ -48,6 +50,8 @@ namespace P42.Storage.Native
 
         public override bool IsOfType(StorageItemTypes type)
             => type == StorageItemTypes.Folder;
+
+
 
         public async Task<IStorageFile> CreateFileAsync(string desiredName)
         {
@@ -94,14 +98,29 @@ namespace P42.Storage.Native
             return null;
         }
 
-        public async Task<IReadOnlyList<IStorageFile>> GetFilesAsync()
+        public async Task<IReadOnlyList<IStorageFile>> GetFilesAsync(string pattern = null)
         {
             if (_folder != null &&
                 await _folder.GetFilesAsync() is IReadOnlyList<Windows.Storage.StorageFile> windowsFiles)
             {
                 List<IStorageFile> files = new List<IStorageFile>();
+
+                string regex = null;
+                if (!string.IsNullOrWhiteSpace(pattern))
+                {
+                    regex = P42.Storage.StringExtensions.WildcardToRegex(pattern);
+                }
+
                 foreach (var windowsFile in windowsFiles)
-                    files.Add(new StorageFile(windowsFile));
+                {
+                    if (!string.IsNullOrWhiteSpace(regex))
+                    { 
+                        if (Regex.IsMatch(windowsFile.Name, regex))
+                            files.Add(new StorageFile(windowsFile));
+                    }
+                    else
+                        files.Add(new StorageFile(windowsFile));
+                }
                 return files.AsReadOnly();
             }
             return null;

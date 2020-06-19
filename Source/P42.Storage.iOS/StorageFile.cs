@@ -57,9 +57,9 @@ namespace P42.Storage.Native
 
 
         #region IStorageFile
-        public Task CopyAndReplaceAsync(IStorageFile fileToReplace)
+        public async Task CopyAndReplaceAsync(IStorageFile fileToReplace)
         //    => Task.Run(() => { File.Replace(Path, fileToReplace.Path, null); });
-            => CopyAsync(fileToReplace.GetParentAsync().Result, fileToReplace.Name);
+            => CopyAsync(await fileToReplace.GetParentAsync(), fileToReplace.Name);
 
 
         public Task<IStorageFile> CopyAsync(IStorageFolder destinationFolder)
@@ -88,66 +88,64 @@ namespace P42.Storage.Native
                 destination.StopAccessingSecurityScopedResource();
                 url.StopAccessingSecurityScopedResource();
             }
-            return null;
+            return Task.FromResult<IStorageFile>(null);
         }
 
 
         public Task MoveAndReplaceAsync(IStorageFile fileToReplace)
-            => Task.Run(() =>
+        {
+            if (fileToReplace is StorageFile file &&
+                file.Url is NSUrl fileUrl &&
+                Url is NSUrl url)
             {
-                if (fileToReplace is StorageFile file &&
-                    file.Url is NSUrl fileUrl &&
-                    Url is NSUrl url)
+                url.StartAccessingSecurityScopedResource();
+                fileUrl.StartAccessingSecurityScopedResource();
+                if (NSFileManager.DefaultManager.Replace(fileUrl, url,
+                    fileUrl.AppendPathExtension(".bak").LastPathComponent,
+                    NSFileManagerItemReplacementOptions.WithoutDeletingBackupItem,
+                    out NSUrl resultingUrl, out NSError error))
                 {
-                    url.StartAccessingSecurityScopedResource();
-                    fileUrl.StartAccessingSecurityScopedResource();
-                    if (NSFileManager.DefaultManager.Replace(fileUrl, url,
-                        fileUrl.AppendPathExtension(".bak").LastPathComponent,
-                        NSFileManagerItemReplacementOptions.WithoutDeletingBackupItem,
-                        out NSUrl resultingUrl, out NSError error))
-                    {
-                        Url = resultingUrl;
-                    }
-                    else
-                    {
-                        Console.WriteLine("Cannot replace file at destination [" + fileUrl.Path + "] with [" + url.Path + "].");
-                        Console.WriteLine("ERROR: " + error);
-                    }
-                    fileUrl.StopAccessingSecurityScopedResource();
-                    url.StopAccessingSecurityScopedResource();
+                    Url = resultingUrl;
                 }
-                return Task.CompletedTask;
-            });
+                else
+                {
+                    Console.WriteLine("Cannot replace file at destination [" + fileUrl.Path + "] with [" + url.Path + "].");
+                    Console.WriteLine("ERROR: " + error);
+                }
+                fileUrl.StopAccessingSecurityScopedResource();
+                url.StopAccessingSecurityScopedResource();
+            }
+            return Task.CompletedTask;
+        }
 
         public Task MoveAsync(IStorageFolder destinationFolder)
             => MoveAsync(destinationFolder, Name);
 
         public Task MoveAsync(IStorageFolder destinationFolder, string desiredNewName)
-            => Task.Run(() =>
-            { 
-                if (destinationFolder is StorageFolder folder &&
-                    folder.Url is NSUrl folderUrl &&
-                    !string.IsNullOrWhiteSpace(desiredNewName) &&
-                    Url is NSUrl url
-                    )
+        {
+            if (destinationFolder is StorageFolder folder &&
+                folder.Url is NSUrl folderUrl &&
+                !string.IsNullOrWhiteSpace(desiredNewName) &&
+                Url is NSUrl url
+                )
+            {
+                var destination = folderUrl.Append(desiredNewName, false);
+                url.StartAccessingSecurityScopedResource();
+                destination.StartAccessingSecurityScopedResource();
+                if (NSFileManager.DefaultManager.Move(url, destination, out NSError error))
                 {
-                    var destination = folderUrl.Append(desiredNewName, false);
-                    url.StartAccessingSecurityScopedResource();
-                    destination.StartAccessingSecurityScopedResource();
-                    if (NSFileManager.DefaultManager.Move(url, destination, out NSError error))
-                    {
-                        return Task.FromResult<IStorageFile>(new StorageFile(destination));
-                    }
-                    else
-                    {
-                        Console.WriteLine("Cannot move file [" + url.Path + "] to destination [" + folder.Url.Path + "].");
-                        Console.WriteLine("ERROR: " + error);
-                    }
-                    destination.StopAccessingSecurityScopedResource();
-                    url.StopAccessingSecurityScopedResource();
+                    return Task.FromResult<IStorageFile>(new StorageFile(destination));
                 }
-                return null;
-            });
+                else
+                {
+                    Console.WriteLine("Cannot move file [" + url.Path + "] to destination [" + folder.Url.Path + "].");
+                    Console.WriteLine("ERROR: " + error);
+                }
+                destination.StopAccessingSecurityScopedResource();
+                url.StopAccessingSecurityScopedResource();
+            }
+            return Task.FromResult<IStorageFile>(null);
+        }
 
         public Task RenameAsync(string desiredName)
             => RenameAsync(desiredName, NameCollisionOption.FailIfExists);
@@ -190,7 +188,6 @@ namespace P42.Storage.Native
                 default:
                     break;
             }
-
             await MoveAsync(await GetParentAsync(), System.IO.Path.GetFileName(newPath));
         }
         #endregion
@@ -229,7 +226,7 @@ namespace P42.Storage.Native
         }
         */
 
-
+        #region System.IO.File methods
         public void AppendAllLines(IEnumerable<string> lines)
         {
             if (Url is NSUrl url)
@@ -404,22 +401,22 @@ namespace P42.Storage.Native
             }
         }
 
-        public void WriteAllLines(IEnumerable<string> content)
+        public void WriteAllLines(IEnumerable<string> lines)
         {
             if (Url is NSUrl url)
             {
                 url.StartAccessingSecurityScopedResource();
-                File.WriteAllLines(url.Path, content);
+                File.WriteAllLines(url.Path, lines);
                 url.StopAccessingSecurityScopedResource();
             }
         }
 
-        public async Task WriteAllLinesAsync(IEnumerable<string> content, System.Threading.CancellationToken cancellationToken = default)
+        public async Task WriteAllLinesAsync(IEnumerable<string> lines, System.Threading.CancellationToken cancellationToken = default)
         {
             if (Url is NSUrl url)
             {
                 url.StartAccessingSecurityScopedResource();
-                await File.WriteAllLinesAsync(url.Path, content, cancellationToken);
+                await File.WriteAllLinesAsync(url.Path, lines, cancellationToken);
                 url.StopAccessingSecurityScopedResource();
             }
         }
@@ -443,6 +440,6 @@ namespace P42.Storage.Native
                 url.StopAccessingSecurityScopedResource();
             }
         }
-
+        #endregion
     }
 }

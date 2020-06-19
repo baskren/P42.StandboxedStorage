@@ -193,31 +193,27 @@ namespace P42.Storage.Native
         /// <returns></returns>
         public Task<IReadOnlyList<IStorageFile>> GetFilesAsync(string pattern = null)
         {
-            //return Task.Run<IReadOnlyList<IStorageFile>>(() =>
+            List<IStorageFile> files = new List<IStorageFile>();
+
+            string regex = null;
+            if (!string.IsNullOrWhiteSpace(pattern))
             {
-                List<IStorageFile> files = new List<IStorageFile>();
+                regex = P42.Storage.StringExtensions.WildcardToRegex(pattern);
+            }
 
-                string regex = null;
-                if (!string.IsNullOrWhiteSpace(pattern))
+
+            foreach (string filename in Directory.GetFiles(Path))
+            {
+                if (!string.IsNullOrWhiteSpace(regex))
                 {
-                    regex = P42.Storage.StringExtensions.WildcardToRegex(pattern);
-                }
-
-
-                foreach (string filename in Directory.GetFiles(Path))
-                {
-                    if (!string.IsNullOrWhiteSpace(regex))
-                    {
-                        if (Regex.IsMatch(filename, regex))
-                            files.Add(new StorageFile(System.IO.Path.Combine(Path, filename)));
-                    }
-                    else
+                    if (Regex.IsMatch(filename, regex))
                         files.Add(new StorageFile(System.IO.Path.Combine(Path, filename)));
                 }
-                var result = files.AsReadOnly();
-                return Task.FromResult<IReadOnlyList<IStorageFile>>(result);
+                else
+                    files.Add(new StorageFile(System.IO.Path.Combine(Path, filename)));
             }
-            //);
+            var result = files.AsReadOnly();
+            return Task.FromResult<IReadOnlyList<IStorageFile>>(result);
         }
 
         /// <summary>
