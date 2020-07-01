@@ -19,12 +19,12 @@ namespace P42.Storage
         None = 0,
 
         /// <summary>
-        /// A file that is represented as a <see cref="StorageFile"/> instance.
+        /// A file that is represented as a <see cref="StorageFileExtensions"/> instance.
         /// </summary>
         File = 1,
 
         /// <summary>
-        /// A folder that is represented as a <see cref="StorageFolder"/> instance.
+        /// A folder that is represented as a <see cref="StorageFolderExtensions"/> instance.
         /// </summary>
         Folder = 2,
     }

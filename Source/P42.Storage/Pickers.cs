@@ -24,7 +24,7 @@ namespace P42.Storage
         /// <summary>
         /// Shows the file picker so that the user can pick one file.
         /// </summary>
-        /// <returns>When the call to this method completes successfully, it returns a <see cref="StorageFile"/> object that represents the file that the user picked.</returns>
+        /// <returns>When the call to this method completes successfully, it returns a <see cref="StorageFileExtensions"/> object that represents the file that the user picked.</returns>
         public static Task<IStorageFile> PickSingleFileAsync(IList<string> fileTypes = null)
         {
             if (PlatformDelegate.PickFileAsync != null)
@@ -49,7 +49,7 @@ namespace P42.Storage
         /// <summary>
         /// Shows the folderPicker object so that the user can pick a folder.
         /// </summary>
-        /// <returns>When the call to this method completes successfully, it returns a <see cref="StorageFolder"/> object that represents the folder that the user picked.</returns>
+        /// <returns>When the call to this method completes successfully, it returns a <see cref="StorageFolderExtensions"/> object that represents the folder that the user picked.</returns>
         public static Task<IStorageFolder> PickSingleFolderAsync()
         {
             if (PlatformDelegate.PickFolderAsync != null)

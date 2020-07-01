@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace P42.Storage
 {
-    public static class StorageFile
+    public static class StorageFileExtensions
     {
         /// <summary>
         /// Gets a StorageFile object to represent the file at the specified path.
