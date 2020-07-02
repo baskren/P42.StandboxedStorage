@@ -82,10 +82,18 @@ namespace P42.Storage.Native
             => type == StorageItemTypes.None;
 
         public async Task DeleteAsync()
-            => await _item.DeleteAsync();
+        {
+            await Task.Delay(5).ConfigureAwait(false);
+
+            await _item.DeleteAsync();
+        }
 
         public async Task DeleteAsync(StorageDeleteOption option)
-            => await _item.DeleteAsync((Windows.Storage.StorageDeleteOption)((int)option));
+        {
+            await Task.Delay(5).ConfigureAwait(false);
+
+            await _item.DeleteAsync((Windows.Storage.StorageDeleteOption)((int)option));
+        }
         #endregion
     }
 }

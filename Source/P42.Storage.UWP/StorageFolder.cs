@@ -43,6 +43,8 @@ namespace P42.Storage.Native
 
         public static async Task<IStorageFolder> GetFolderFromPathAsync(string path)
         {
+            await Task.Delay(5).ConfigureAwait(false);
+
             if (await Windows.Storage.StorageFolder.GetFolderFromPathAsync(path) is Windows.Storage.StorageFolder windowsFolder)
                 return new StorageFolder(windowsFolder);
             return null;
@@ -55,6 +57,8 @@ namespace P42.Storage.Native
 
         public async Task<IStorageFile> CreateFileAsync(string desiredName)
         {
+            await Task.Delay(5).ConfigureAwait(false);
+
             if (_folder != null &&
                 !string.IsNullOrWhiteSpace(desiredName) &&
                 await _folder.CreateFileAsync(desiredName) is Windows.Storage.StorageFile file)
@@ -64,6 +68,8 @@ namespace P42.Storage.Native
 
         public async Task<IStorageFile> CreateFileAsync(string desiredName, CreationCollisionOption options)
         {
+            await Task.Delay(5).ConfigureAwait(false);
+
             if (_folder != null &&
                 !string.IsNullOrWhiteSpace(desiredName) &&
                 await _folder.CreateFileAsync(desiredName, (Windows.Storage.CreationCollisionOption)options) is Windows.Storage.StorageFile file)
@@ -73,6 +79,8 @@ namespace P42.Storage.Native
 
         public async Task<IStorageFolder> CreateFolderAsync(string desiredName)
         {
+            await Task.Delay(5).ConfigureAwait(false);
+
             if (_folder != null &&
                 !string.IsNullOrWhiteSpace(desiredName) &&
                 await _folder.CreateFolderAsync(desiredName) is Windows.Storage.StorageFolder folder)
@@ -82,6 +90,8 @@ namespace P42.Storage.Native
 
         public async Task<IStorageFolder> CreateFolderAsync(string desiredName, CreationCollisionOption options)
         {
+            await Task.Delay(5).ConfigureAwait(false);
+
             if (_folder != null &&
                 !string.IsNullOrWhiteSpace(desiredName) &&
                 await _folder.CreateFolderAsync(desiredName, (Windows.Storage.CreationCollisionOption)options) is Windows.Storage.StorageFolder folder)
@@ -91,6 +101,8 @@ namespace P42.Storage.Native
 
         public async Task<IStorageFile> GetFileAsync(string filename)
         {
+            await Task.Delay(5).ConfigureAwait(false);
+
             if (_folder != null &&
                 !string.IsNullOrWhiteSpace(filename) &&
                 await _folder.GetFileAsync(filename) is Windows.Storage.StorageFile file)
@@ -100,6 +112,8 @@ namespace P42.Storage.Native
 
         public async Task<IReadOnlyList<IStorageFile>> GetFilesAsync(string pattern = null)
         {
+            await Task.Delay(5).ConfigureAwait(false);
+
             if (_folder != null &&
                 await _folder.GetFilesAsync() is IReadOnlyList<Windows.Storage.StorageFile> windowsFiles)
             {
@@ -128,6 +142,8 @@ namespace P42.Storage.Native
 
         public async Task<IStorageFolder> GetFolderAsync(string name)
         {
+            await Task.Delay(5).ConfigureAwait(false);
+
             if (_folder != null &&
                 !string.IsNullOrWhiteSpace(name) &&
                 await _folder.GetFolderAsync(name) is Windows.Storage.StorageFolder windowsFoler)
@@ -137,6 +153,8 @@ namespace P42.Storage.Native
 
         public async Task<IReadOnlyList<IStorageFolder>> GetFoldersAsync()
         {
+            await Task.Delay(5).ConfigureAwait(false);
+
             if (_folder != null &&
                 await _folder.GetFoldersAsync() is IReadOnlyList<Windows.Storage.StorageFolder> windowsFolders)
             {
@@ -150,6 +168,8 @@ namespace P42.Storage.Native
 
         public async Task<IStorageItem> GetItemAsync(string name)
         {
+            await Task.Delay(5).ConfigureAwait(false);
+
             if (_folder != null &&
                 !string.IsNullOrWhiteSpace(name) &&
                 await _folder.GetItemAsync(name) is Windows.Storage.IStorageItem windowsStorageItem)
@@ -163,7 +183,9 @@ namespace P42.Storage.Native
         }
 
         public async Task<IReadOnlyList<IStorageItem>> GetItemsAsync()
-        { 
+        {
+            await Task.Delay(5).ConfigureAwait(false);
+
             if (_folder != null &&
                 await _folder.GetItemsAsync() is IReadOnlyList<Windows.Storage.IStorageItem> windowsItems)
             {
