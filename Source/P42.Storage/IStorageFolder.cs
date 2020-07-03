@@ -89,7 +89,7 @@ namespace P42.Storage
         /// Gets the folders in the current folder.
         /// </summary>
         /// <returns></returns>
-        Task<IReadOnlyList<IStorageFolder>> GetFoldersAsync();
+        Task<IReadOnlyList<IStorageFolder>> GetFoldersAsync(string pattern = null);
 
         /// <summary>
         /// Gets the specified item from the <see cref="IStorageFolder"/>.
@@ -102,7 +102,7 @@ namespace P42.Storage
         /// Gets the items from the current folder.
         /// </summary>
         /// <returns></returns>
-        Task<IReadOnlyList<IStorageItem>> GetItemsAsync();
+        Task<IReadOnlyList<IStorageItem>> GetItemsAsync(string pattern = null);
 
         /// <summary>
         /// Try to get a single file or sub-folder from the current folder by using the name of the item.

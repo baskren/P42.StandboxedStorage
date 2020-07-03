@@ -103,12 +103,8 @@ namespace P42.Storage.Native
         public async Task<IStorageFile> GetFileAsync(string filename)
         {
             await Task.Delay(5).ConfigureAwait(false);
-
-            if (_folder != null &&
-                !string.IsNullOrWhiteSpace(filename) &&
-                await _folder.GetFileAsync(filename) is Windows.Storage.StorageFile file)
-                return new StorageFile(file);
-            return null;
+            var files = await GetFilesAsync(filename);
+            return files?.FirstOrDefault();
         }
 
         public async Task<IReadOnlyList<IStorageFile>> GetFilesAsync(string pattern = null)
@@ -120,22 +116,14 @@ namespace P42.Storage.Native
             {
                 List<IStorageFile> files = new List<IStorageFile>();
 
-                string regex = null;
-                if (!string.IsNullOrWhiteSpace(pattern))
-                {
-                    regex = P42.Storage.StringExtensions.WildcardToRegex(pattern);
-                }
+                string regex = string.IsNullOrWhiteSpace(pattern)
+                    ? null
+                    : StringExtensions.WildcardToRegex(pattern);
 
                 foreach (var windowsFile in windowsFiles)
-                {
-                    if (!string.IsNullOrWhiteSpace(regex))
-                    { 
-                        if (Regex.IsMatch(windowsFile.Name, regex))
-                            files.Add(new StorageFile(windowsFile));
-                    }
-                    else
+                    if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(windowsFile.Name, regex))
                         files.Add(new StorageFile(windowsFile));
-                }
+
                 return files.AsReadOnly();
             }
             return null;
@@ -144,15 +132,11 @@ namespace P42.Storage.Native
         public async Task<IStorageFolder> GetFolderAsync(string name)
         {
             await Task.Delay(5).ConfigureAwait(false);
-
-            if (_folder != null &&
-                !string.IsNullOrWhiteSpace(name) &&
-                await _folder.GetFolderAsync(name) is Windows.Storage.StorageFolder windowsFoler)
-                return new StorageFolder(windowsFoler);
-            return null;
+            var folders = await GetFoldersAsync(name);
+            return folders?.FirstOrDefault();
         }
 
-        public async Task<IReadOnlyList<IStorageFolder>> GetFoldersAsync()
+        public async Task<IReadOnlyList<IStorageFolder>> GetFoldersAsync(string pattern = null)
         {
             await Task.Delay(5).ConfigureAwait(false);
 
@@ -160,8 +144,15 @@ namespace P42.Storage.Native
                 await _folder.GetFoldersAsync() is IReadOnlyList<Windows.Storage.StorageFolder> windowsFolders)
             {
                 List<IStorageFolder> folders = new List<IStorageFolder>();
+
+                string regex = string.IsNullOrWhiteSpace(pattern)
+                    ? null
+                    : StringExtensions.WildcardToRegex(pattern);
+
                 foreach (var windowsFolder in windowsFolders)
-                    folders.Add(new StorageFolder(windowsFolder));
+                    if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(windowsFolder.Name, regex))
+                        folders.Add(new StorageFolder(windowsFolder));
+
                 return folders.AsReadOnly();
             }
             return null;
@@ -171,19 +162,11 @@ namespace P42.Storage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            if (_folder != null &&
-                !string.IsNullOrWhiteSpace(name) &&
-                await _folder.GetItemAsync(name) is Windows.Storage.IStorageItem windowsStorageItem)
-            {
-                if (windowsStorageItem is Windows.Storage.StorageFile windowsFile)
-                    return new StorageFile(windowsFile);
-                else if (windowsStorageItem is Windows.Storage.StorageFolder windowsFolder)
-                    return new StorageFolder(windowsFolder);
-            }
-            return null;
+            var folders = await GetItemsAsync(name);
+            return folders?.FirstOrDefault();
         }
 
-        public async Task<IReadOnlyList<IStorageItem>> GetItemsAsync()
+        public async Task<IReadOnlyList<IStorageItem>> GetItemsAsync(string pattern = null)
         {
             await Task.Delay(5).ConfigureAwait(false);
 
@@ -191,13 +174,22 @@ namespace P42.Storage.Native
                 await _folder.GetItemsAsync() is IReadOnlyList<Windows.Storage.IStorageItem> windowsItems)
             {
                 List<IStorageItem> items = new List<IStorageItem>();
+
+                string regex = string.IsNullOrWhiteSpace(pattern)
+                        ? null
+                        : StringExtensions.WildcardToRegex(pattern);
+
                 foreach (var windowsItem in windowsItems)
                 {
-                    if (windowsItem is Windows.Storage.StorageFile windowsFile)
-                        items.Add(new StorageFile(windowsFile));
-                    else if (windowsItem is Windows.Storage.StorageFolder windowsFolder)
-                        items.Add(new StorageFolder(windowsFolder));
+                    if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(windowsItem.Name, regex))
+                    {
+                        if (windowsItem is Windows.Storage.StorageFile windowsFile)
+                            items.Add(new StorageFile(windowsFile));
+                        else if (windowsItem is Windows.Storage.StorageFolder windowsFolder)
+                            items.Add(new StorageFolder(windowsFolder));
+                    }
                 }
+
                 return items.AsReadOnly();
             }
             return null;

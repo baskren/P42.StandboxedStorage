@@ -45,7 +45,15 @@ namespace P42.Storage.Native
         }
 
         public string FileType
-            => Url?.PathExtension;
+        {
+            get
+            {
+                var extension = Url?.PathExtension.ToLower();
+                return string.IsNullOrEmpty(extension)
+                    ? extension
+                    : "." + extension;
+            }
+        }
         #endregion
 
 

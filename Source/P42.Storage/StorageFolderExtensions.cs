@@ -22,20 +22,23 @@ namespace P42.Storage
 
         public static async Task<bool> FileExists(this IStorageFolder storageFolder, string fileName)
         {
-            if (storageFolder is null)
+            if (storageFolder is null || string.IsNullOrWhiteSpace(fileName))
                 return false;
-            if (await storageFolder.GetFileAsync(fileName) is IStorageFile)
-                return true;
-            return false;
+            return await storageFolder.GetFileAsync(fileName) != null;
         }
 
         public static async Task<bool> FolderExists(this IStorageFolder storageFolder, string folderName)
         {
-            if (storageFolder is null)
+            if (storageFolder is null || string.IsNullOrWhiteSpace(folderName))
                 return false;
-            if (await storageFolder.GetFolderAsync(folderName) is IStorageFolder)
-                return true;
-            return false;
+            return await storageFolder.GetFolderAsync(folderName) != null;
+        }
+
+        public static async Task<bool> ItemExists(this IStorageFolder storageFolder, string itemName)
+        {
+            if (storageFolder is null || string.IsNullOrWhiteSpace(itemName))
+                return false;
+            return await storageFolder.GetItemAsync(itemName) != null;
         }
 
         public static async Task<IStorageFile> GetOrCreateFileAsync(this IStorageFolder storageFolder, string fileName)

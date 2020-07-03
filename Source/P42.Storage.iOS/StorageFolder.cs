@@ -172,9 +172,11 @@ namespace P42.Storage.Native
         /// </summary>
         /// <param name="filename"></param>
         /// <returns></returns>
-        public Task<IStorageFile> GetFileAsync(string filename)
+        public async Task<IStorageFile> GetFileAsync(string filename)
         {
-            return Task.Run<IStorageFile>(() =>
+            await Task.Delay(5).ConfigureAwait(false);
+
+            return await Task.Run<IStorageFile>(() =>
             {
                 string filepath = System.IO.Path.Combine(Path, filename);
 
@@ -191,29 +193,22 @@ namespace P42.Storage.Native
         /// Gets the files in the current folder.
         /// </summary>
         /// <returns></returns>
-        public Task<IReadOnlyList<IStorageFile>> GetFilesAsync(string pattern = null)
+        public async Task<IReadOnlyList<IStorageFile>> GetFilesAsync(string pattern = null)
         {
+            await Task.Delay(5).ConfigureAwait(false);
+
             List<IStorageFile> files = new List<IStorageFile>();
 
-            string regex = null;
-            if (!string.IsNullOrWhiteSpace(pattern))
-            {
-                regex = P42.Storage.StringExtensions.WildcardToRegex(pattern);
-            }
-
+            string regex = string.IsNullOrWhiteSpace(pattern)
+                ? null
+                : StringExtensions.WildcardToRegex(pattern);
 
             foreach (string filename in Directory.GetFiles(Path))
-            {
-                if (!string.IsNullOrWhiteSpace(regex))
-                {
-                    if (Regex.IsMatch(filename, regex))
-                        files.Add(new StorageFile(System.IO.Path.Combine(Path, filename)));
-                }
-                else
+                if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(filename, regex))
                     files.Add(new StorageFile(System.IO.Path.Combine(Path, filename)));
-            }
+
             var result = files.AsReadOnly();
-            return Task.FromResult<IReadOnlyList<IStorageFile>>(result);
+            return await Task.FromResult<IReadOnlyList<IStorageFile>>(result);
         }
 
         /// <summary>
@@ -221,9 +216,11 @@ namespace P42.Storage.Native
         /// </summary>
         /// <param name="name">The name of the child folder to retrieve.</param>
         /// <returns>When this method completes successfully, it returns a StorageFolder that represents the child folder.</returns>
-        public Task<IStorageFolder> GetFolderAsync(string name)
+        public async Task<IStorageFolder> GetFolderAsync(string name)
         {
-            return Task.Run<IStorageFolder>(() =>
+            await Task.Delay(5).ConfigureAwait(false);
+
+            return await Task.Run<IStorageFolder>(() =>
             {
                 string folderpath = System.IO.Path.Combine(Path, name);
 
@@ -239,15 +236,22 @@ namespace P42.Storage.Native
         /// Gets the folders in the current folder.
         /// </summary>
         /// <returns></returns>
-        public Task<IReadOnlyList<IStorageFolder>> GetFoldersAsync()
+        public async Task<IReadOnlyList<IStorageFolder>> GetFoldersAsync(string pattern = null)
         {
+            await Task.Delay(5).ConfigureAwait(false);
+
             List<IStorageFolder> folders = new List<IStorageFolder>();
-            return Task.Run<IReadOnlyList<IStorageFolder>>(() =>
+
+            string regex = string.IsNullOrWhiteSpace(pattern)
+                ? null
+                : StringExtensions.WildcardToRegex(pattern);
+
+            return await Task.Run<IReadOnlyList<IStorageFolder>>(() =>
             {
                 foreach (string foldername in Directory.GetDirectories(Path))
-                {
-                    folders.Add(new StorageFolder(System.IO.Path.Combine(Path, foldername)));
-                }
+                    if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(foldername, regex))
+                        folders.Add(new StorageFolder(System.IO.Path.Combine(Path, foldername)));
+                
                 return folders.AsReadOnly();
             });
         }
@@ -257,9 +261,11 @@ namespace P42.Storage.Native
         /// </summary>
         /// <param name="name">The name (or path relative to the current folder) of the file or folder to get.</param>
         /// <returns></returns>
-        public Task<IStorageItem> GetItemAsync(string name)
+        public async Task<IStorageItem> GetItemAsync(string name)
         {
-            return Task.Run<IStorageItem>(() =>
+            await Task.Delay(5).ConfigureAwait(false);
+
+            return await Task.Run<IStorageItem>(() =>
             {
                 foreach (string foldername in Directory.GetDirectories(Path))
                 {
@@ -281,19 +287,23 @@ namespace P42.Storage.Native
         /// Gets the items in the current folder.
         /// </summary>
         /// <returns></returns>
-        public async Task<IReadOnlyList<IStorageItem>> GetItemsAsync()
+        public async Task<IReadOnlyList<IStorageItem>> GetItemsAsync(string pattern = null)
         {
-            List<IStorageItem> items = new List<IStorageItem>();
             await Task.Delay(5);
+
+            List<IStorageItem> items = new List<IStorageItem>();
+
+            string regex = string.IsNullOrWhiteSpace(pattern)
+                ? null
+                : StringExtensions.WildcardToRegex(pattern);
+
             foreach (string foldername in Directory.GetDirectories(Path))
-            {
-                items.Add(new StorageFolder(System.IO.Path.Combine(Path, foldername)));
-            }
+                if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(foldername, regex))
+                    items.Add(new StorageFolder(System.IO.Path.Combine(Path, foldername)));
 
             foreach (string filename in Directory.GetFiles(Path))
-            {
-                items.Add(new StorageFile(System.IO.Path.Combine(Path, filename)));
-            }
+                if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(filename, regex))
+                    items.Add(new StorageFile(System.IO.Path.Combine(Path, filename)));
 
             var result = items.AsReadOnly();
             return result;
@@ -311,14 +321,11 @@ namespace P42.Storage.Native
             return Task.Run<IStorageItem>(() =>
             {
                 string itempath = System.IO.Path.Combine(Path, name);
+
                 if (File.Exists(itempath))
-                {
                     return new StorageFile(itempath);
-                }
                 else if (Directory.Exists(itempath))
-                {
                     return new StorageFolder(itempath);
-                }
 
                 return null;
             });
