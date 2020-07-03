@@ -45,8 +45,15 @@ namespace P42.Storage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            if (await Windows.Storage.StorageFolder.GetFolderFromPathAsync(path) is Windows.Storage.StorageFolder windowsFolder)
-                return new StorageFolder(windowsFolder);
+            try
+            {
+                if (await Windows.Storage.StorageFolder.GetFolderFromPathAsync(path) is Windows.Storage.StorageFolder windowsFolder)
+                    return new StorageFolder(windowsFolder);
+            }
+            catch (Exception e)
+            {
+                // failed (could be permissions problem?)
+            }
             return null;
         }
 

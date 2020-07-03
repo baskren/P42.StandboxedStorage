@@ -19,7 +19,10 @@ namespace P42.Storage.Native
             else
                 picker.FileTypeFilter.Add("*");
             if (await picker.PickSingleFileAsync() is Windows.Storage.StorageFile windowsFile)
+            {
+                Windows.Storage.AccessCache.StorageApplicationPermissions.MostRecentlyUsedList.Add(windowsFile, windowsFile.Path);
                 return new StorageFile(windowsFile);
+            }
 
             return null;
         }
@@ -35,7 +38,10 @@ namespace P42.Storage.Native
             //else
             //    picker.FileTypeChoices.Add()
             if (await picker.PickSaveFileAsync() is Windows.Storage.StorageFile windowsFile)
+            {
+                Windows.Storage.AccessCache.StorageApplicationPermissions.MostRecentlyUsedList.Add(windowsFile, windowsFile.Path);
                 return new StorageFile(windowsFile);
+            }
 
             return null;
         }

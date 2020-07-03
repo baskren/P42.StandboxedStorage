@@ -14,7 +14,10 @@ namespace P42.Storage.Native
             var picker = new Windows.Storage.Pickers.FolderPicker();
             picker.FileTypeFilter.Add("*");
             if (await picker.PickSingleFolderAsync() is Windows.Storage.StorageFolder windowsFolder)
+            {
+                Windows.Storage.AccessCache.StorageApplicationPermissions.MostRecentlyUsedList.Add(windowsFolder, windowsFolder.Path);
                 return new StorageFolder(windowsFolder);
+            }
             return null;
         }
     }

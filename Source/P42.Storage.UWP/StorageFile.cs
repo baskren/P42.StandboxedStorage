@@ -33,7 +33,9 @@ namespace P42.Storage.Native
             task.RunSynchronously();
         }
 
-        public StorageFile(Windows.Storage.StorageFile file) : base(file) { }
+        public StorageFile(Windows.Storage.StorageFile file) : base(file) 
+        {
+        }
         #endregion
 
 
@@ -61,8 +63,15 @@ namespace P42.Storage.Native
             {
                 throw new ArgumentNullException("path");
             }
-            if (await Windows.Storage.StorageFile.GetFileFromPathAsync(path) is Windows.Storage.StorageFile nativeStorageFile)
-                return new StorageFile(nativeStorageFile);
+            try
+            {
+                if (await Windows.Storage.StorageFile.GetFileFromPathAsync(path) is Windows.Storage.StorageFile nativeStorageFile)
+                    return new StorageFile(nativeStorageFile);
+            }
+            catch (Exception e)
+            {
+                // failed (could be permissions problem?)
+            }
             return null;
         }
 
