@@ -27,12 +27,6 @@ namespace P42.Storage.Native
 
 
         #region Construction
-        public StorageFile(string path)
-        {
-            var task = Task.Run(async () => _file = await Windows.Storage.StorageFile.GetFileFromPathAsync(path));
-            task.RunSynchronously();
-        }
-
         public StorageFile(Windows.Storage.StorageFile file) : base(file) 
         {
         }
@@ -176,41 +170,18 @@ namespace P42.Storage.Native
 
 
         #region System.IO.File methods
-        public void AppendAllLines(IEnumerable<string> lines)
-            => AppendAllLinesAsync(lines).RunSynchronously();
-
-        public Task AppendAllLinesAsync(IEnumerable<string> lines, System.Threading.CancellationToken cancellationToken = default)
-            => Windows.Storage.FileIO.AppendLinesAsync(_file, lines, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
-
-        public void AppendAllText(string contents)
-            => AppendAllTextAsync(contents).RunSynchronously();
-
-        public Task AppendAllTextAsync(string contents, System.Threading.CancellationToken cancellationToken = default)
-            => Windows.Storage.FileIO.AppendTextAsync(_file, contents, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
-
-        public FileStream Open(FileMode mode, FileAccess access = FileAccess.ReadWrite, FileShare share = FileShare.None)
-            => new FileStream(_file.Path, mode, access, share);
-
-        public FileStream OpenRead()
-            => new FileStream(_file.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-        public StreamReader OpenText()
+        public async Task AppendAllLinesAsync(IEnumerable<string> lines, System.Threading.CancellationToken cancellationToken = default)
         {
-            if (OpenRead() is System.IO.FileStream fileStream)
-            {
-                return new StreamReader(fileStream);
-            }
-            return null;
+            await Task.Delay(5).ConfigureAwait(false);
+
+            await Windows.Storage.FileIO.AppendLinesAsync(_file, lines, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
         }
 
-        public FileStream OpenWrite()
-            => new FileStream(_file.Path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
-
-        public byte[] ReadAllBytes()
+        public async Task AppendAllTextAsync(string contents, System.Threading.CancellationToken cancellationToken = default)
         {
-            var task = ReadAllBytesAsync();
-            task.RunSynchronously();
-            return task.Result;
+            await Task.Delay(5).ConfigureAwait(false);
+
+            await Windows.Storage.FileIO.AppendTextAsync(_file, contents, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
         }
 
         public async Task<byte[]> ReadAllBytesAsync(System.Threading.CancellationToken cancellationToken = default)
@@ -221,13 +192,6 @@ namespace P42.Storage.Native
             return buffer?.ToArray();
         }
 
-        public string[] ReadAllLines()
-        {
-            var task = ReadAllLinesAsync();
-            task.RunSynchronously();
-            return task.Result;
-        }
-
         public async Task<string[]> ReadAllLinesAsync(System.Threading.CancellationToken cancellationToken = default)
         {
             await Task.Delay(5).ConfigureAwait(false);
@@ -236,38 +200,35 @@ namespace P42.Storage.Native
             return result.ToArray();
         }
 
-        public string ReadAllText()
-        {
-            var task = ReadAllTextAsync();
-            task.Wait();
-            //task.RunSynchronously();
-            return task.Result;
-        }
-
         public async Task<string> ReadAllTextAsync(System.Threading.CancellationToken cancellationToken = default)
         {
+            await Task.Delay(5).ConfigureAwait(false);
+
             var text = await Windows.Storage.FileIO.ReadTextAsync(_file, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
             //var text = await Windows.Storage.FileIO.ReadTextAsync(_file.Path, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
             return text;
         }
 
-        public void WriteAllBytes(byte[] bytes)
-            => WriteAllBytesAsync(bytes).RunSynchronously();
+        public async Task WriteAllBytesAsync(byte[] bytes, System.Threading.CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(5).ConfigureAwait(false);
 
-        public Task WriteAllBytesAsync(byte[] bytes, System.Threading.CancellationToken cancellationToken = default)
-            => Windows.Storage.FileIO.WriteBytesAsync(_file, bytes).AsTask(cancellationToken);
+            await Windows.Storage.FileIO.WriteBytesAsync(_file, bytes).AsTask(cancellationToken);
+        }
 
-        public void WriteAllLines(IEnumerable<string> content)
-            => WriteAllLinesAsync(content).RunSynchronously();
+        public async Task WriteAllLinesAsync(IEnumerable<string> lines, System.Threading.CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(5).ConfigureAwait(false);
 
-        public Task WriteAllLinesAsync(IEnumerable<string> lines, System.Threading.CancellationToken cancellationToken = default)
-            => Windows.Storage.FileIO.WriteLinesAsync(_file, lines, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
+            await Windows.Storage.FileIO.WriteLinesAsync(_file, lines, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
+        }
 
-        public void WriteAllText(string content)
-            => WriteAllTextAsync(content).RunSynchronously();
+        public async Task WriteAllTextAsync(string content, System.Threading.CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(5).ConfigureAwait(false);
 
-        public Task WriteAllTextAsync(string content, System.Threading.CancellationToken cancellationToken = default)
-            => Windows.Storage.FileIO.WriteTextAsync(_file, content, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
+            await Windows.Storage.FileIO.WriteTextAsync(_file, content, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
+        }
 
         #endregion
 

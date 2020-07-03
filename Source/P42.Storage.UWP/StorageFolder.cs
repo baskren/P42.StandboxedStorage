@@ -19,12 +19,6 @@ namespace P42.Storage.Native
 
         #region Construction
         public StorageFolder(Windows.Storage.StorageFolder storageFolder) : base(storageFolder) { }
-
-        public StorageFolder(string path)
-        {
-            var task = Task.Run(async () => _folder = await Windows.Storage.StorageFolder.GetFolderFromPathAsync(path));
-            task.RunSynchronously();
-        }
         #endregion
 
 

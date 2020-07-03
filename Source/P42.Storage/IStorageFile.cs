@@ -126,45 +126,19 @@ namespace P42.Storage
 
 
         #region System.IO.File
-        void AppendAllLines(IEnumerable<string> lines);
-
         Task AppendAllLinesAsync(IEnumerable<string> lines, System.Threading.CancellationToken cancellationToken = default);
-
-        void AppendAllText(string contents);
 
         Task AppendAllTextAsync(string contents, System.Threading.CancellationToken cancellationToken = default);
 
-        /*
-        System.IO.FileStream Open(System.IO.FileMode mode, System.IO.FileAccess access = System.IO.FileAccess.ReadWrite, System.IO.FileShare share = System.IO.FileShare.None);
-
-        System.IO.FileStream OpenRead();
-
-        System.IO.StreamReader OpenText();
-
-        System.IO.FileStream OpenWrite();
-        */
-
-        byte[] ReadAllBytes();
-
         Task<byte[]> ReadAllBytesAsync(System.Threading.CancellationToken cancellationToken = default);
-
-        string[] ReadAllLines();
 
         Task<string[]> ReadAllLinesAsync(System.Threading.CancellationToken cancellationToken = default);
 
-        string ReadAllText();
-
         Task<string> ReadAllTextAsync(System.Threading.CancellationToken cancellationToken = default);
-
-        void WriteAllBytes(byte[] bytes);
 
         Task WriteAllBytesAsync(byte[] bytes, System.Threading.CancellationToken cancellationToken = default);
 
-        void WriteAllLines(IEnumerable<string> content);
-
         Task WriteAllLinesAsync(IEnumerable<string> content, System.Threading.CancellationToken cancellationToken = default);
-
-        void WriteAllText(string content);
 
         Task WriteAllTextAsync(string content, System.Threading.CancellationToken cancellationToken = default);
 

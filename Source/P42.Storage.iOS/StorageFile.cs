@@ -227,32 +227,12 @@ namespace P42.Storage.Native
         */
 
         #region System.IO.File methods
-        public void AppendAllLines(IEnumerable<string> lines)
-        {
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                File.AppendAllLines(url.Path, lines);
-                url.StopAccessingSecurityScopedResource();
-            }
-        }
-
         public async Task AppendAllLinesAsync(IEnumerable<string> lines, System.Threading.CancellationToken cancellationToken = default)
         {
             if (Url is NSUrl url)
             {
                 url.StartAccessingSecurityScopedResource();
                 await File.AppendAllLinesAsync(url.Path, lines, cancellationToken);
-                url.StopAccessingSecurityScopedResource();
-            }
-        }
-
-        public void AppendAllText(string contents)
-        {
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                File.AppendAllText(url.Path, contents);
                 url.StopAccessingSecurityScopedResource();
             }
         }
@@ -267,60 +247,6 @@ namespace P42.Storage.Native
             }
         }
 
-
-        public System.IO.FileStream Open(System.IO.FileMode mode, System.IO.FileAccess access = FileAccess.ReadWrite, System.IO.FileShare share = FileShare.None)
-        {
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                return new StorageFileStream(this, Url.Path, mode, access, share);
-            }
-            return null;
-        }
-
-        public System.IO.FileStream OpenRead()
-        {
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                return new StorageFileStream(this, Url.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            }
-            return null;
-        }
-
-        public System.IO.StreamReader OpenText()
-        {
-            if (OpenRead() is System.IO.FileStream fileStream)
-            {
-                return new StorageFileStreamReader(this, fileStream);
-            }
-            return null;
-        }
-
-        public System.IO.FileStream OpenWrite()
-        {
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                return new StorageFileStream(this, Url.Path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
-            }
-            return null;
-        }
-
-
-
-        public byte[] ReadAllBytes()
-        {
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                var bytes = File.ReadAllBytes(url.Path);
-                url.StopAccessingSecurityScopedResource();
-                return bytes;
-            }
-            return null;
-        }
-
         public async Task<byte[]> ReadAllBytesAsync(System.Threading.CancellationToken cancellationToken = default)
         {
             if (Url is NSUrl url)
@@ -329,18 +255,6 @@ namespace P42.Storage.Native
                 var bytes = await File.ReadAllBytesAsync(url.Path, cancellationToken);
                 url.StopAccessingSecurityScopedResource();
                 return bytes;
-            }
-            return null;
-        }
-
-        public string[] ReadAllLines()
-        {
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                var lines = File.ReadAllLines(url.Path);
-                url.StopAccessingSecurityScopedResource();
-                return lines;
             }
             return null;
         }
@@ -357,18 +271,6 @@ namespace P42.Storage.Native
             return null;
         }
 
-        public string ReadAllText()
-        {
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                var content = File.ReadAllText(url.Path);
-                url.StopAccessingSecurityScopedResource();
-                return content;
-            }
-            return null;
-        }
-
         public async Task<string> ReadAllTextAsync(System.Threading.CancellationToken cancellationToken = default)
         {
             if (Url is NSUrl url)
@@ -381,16 +283,6 @@ namespace P42.Storage.Native
             return null;
         }
 
-        public void WriteAllBytes(byte[] bytes)
-        {
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                File.WriteAllBytes(url.Path, bytes);
-                url.StopAccessingSecurityScopedResource();
-            }
-        }
-
         public async Task WriteAllBytesAsync(byte[] bytes, System.Threading.CancellationToken cancellationToken = default)
         {
             if (Url is NSUrl url)
@@ -401,32 +293,12 @@ namespace P42.Storage.Native
             }
         }
 
-        public void WriteAllLines(IEnumerable<string> lines)
-        {
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                File.WriteAllLines(url.Path, lines);
-                url.StopAccessingSecurityScopedResource();
-            }
-        }
-
         public async Task WriteAllLinesAsync(IEnumerable<string> lines, System.Threading.CancellationToken cancellationToken = default)
         {
             if (Url is NSUrl url)
             {
                 url.StartAccessingSecurityScopedResource();
                 await File.WriteAllLinesAsync(url.Path, lines, cancellationToken);
-                url.StopAccessingSecurityScopedResource();
-            }
-        }
-
-        public void WriteAllText(string content)
-        {
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                File.WriteAllText(url.Path, content);
                 url.StopAccessingSecurityScopedResource();
             }
         }
