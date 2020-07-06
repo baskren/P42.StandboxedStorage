@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://xamarin.com/schemas/2014/forms"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:d="http://xamarin.com/schemas/2014/forms/design"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ss="clr-namespace:P42.SandboxedStorage;assembly=P42.SandboxedStorage"
+    mc:Ignorable="d"
+    x:Class="SandboxedStorageSample.MainPage"
+    Padding="10"
+    >
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="10"/>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="10"/>
+        </Grid.RowDefinitions>
+        <!-- Place new controls here -->
+        <Label
+            FontAttributes="Bold"
+            Text="CreateFolder, CreateFile, WriteText, ReadText, AppendText, Rename, Move, DeleteFile, DeleteFolder"
+            />
+        <ss:StorageFolderPickerHybridView
+            x:Name="_folderPicker"
+            Placeholder="Click to pick empty folder for testing ..."
+            PlaceholderColor="Red"
+            StorageFolderChanged="FolderPicker_StorageFolderChanged"
+            Grid.Row="1"
+            />
+
+        <Label
+            FontAttributes="Bold"
+            Text="Verify Access to Folder and File upon restart"
+            Grid.Row="3"/>
+        <ss:StorageFolderPickerHybridView
+            x:Name="ContentFolderPicker"
+            Placeholder="Click to pick folder (with content) for testing ..."
+            PlaceholderColor="Red"
+            StorageFolderChanged="ContentFolderPicker_StorageFolderChanged"
+            Grid.Row="4"
+            />
+        <ss:StorageFilePickerHybridView
+            x:Name="TextFilePicker"
+            Placeholder="Click to pick text file (with content) for testing ..."
+            PlaceholderColor="Red"
+            StorageFileChanged="TextFilePicker_StorageFileChanged"
+            Grid.Row="5"
+            />
+
+    </Grid>
+</ContentPage>
