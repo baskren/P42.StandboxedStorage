@@ -45,10 +45,27 @@ namespace P42.SandboxedStorage
         /// Gets the attributes of a storage item.
         /// </summary>
         FileAttributes Attributes { get; }
+
+        /// <summary>
+        /// What to do if access is denied?
+        /// </summary>
+        AccessDenialResponse AccessDenialResponse { get; set; }
         #endregion
 
 
         #region Methods
+        /// <summary>
+        /// Does the storage item exist?
+        /// </summary>
+        /// <returns></returns>
+        bool Exists();
+
+        /// <summary>
+        /// Can the item be deleted?
+        /// </summary>
+        /// <returns></returns>
+        bool CanDelete();
+
         /// <summary>
         /// Gets the parent folder of the current storage item.
         /// </summary>
@@ -70,13 +87,11 @@ namespace P42.SandboxedStorage
         /// <seealso cref="StorageItemTypes"/>
         bool IsOfType(StorageItemTypes type);
 
-        Task<bool> Exists();
-
-
         /// <summary>
-        /// Deletes the current item, optionally deleting it permanently. 
+        /// Delete the item
         /// </summary>
-        /// <returns></returns>
+        /// <param name="option">Optional: put into TRASH</param>
+        /// <returns>true on success</returns>
         Task DeleteAsync(StorageDeleteOption option = StorageDeleteOption.Default);
 
         #endregion

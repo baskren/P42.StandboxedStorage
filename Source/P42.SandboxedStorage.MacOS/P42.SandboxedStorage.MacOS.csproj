@@ -79,6 +79,7 @@
     <Compile Include="..\P42.SandboxedStorage.iOS\StorageFile.cs">
       <Link>StorageFile.cs</Link>
     </Compile>
+    <Compile Include="BookmarkExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\P42.SandboxedStorage\P42.SandboxedStorage.csproj">

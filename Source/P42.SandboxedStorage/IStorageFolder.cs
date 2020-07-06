@@ -35,6 +35,16 @@ namespace P42.SandboxedStorage
 
         #region Methods
 
+        #region Exists
+        bool ItemExists(string itemName);
+
+        bool FileExists(string fileName);
+
+        bool FolderExists(string folderName);
+        #endregion
+
+
+        #region Create
         /// <summary>
         /// Creates a new file in the current folder.
         /// </summary>
@@ -64,7 +74,10 @@ namespace P42.SandboxedStorage
         /// <param name="options">The enum value that determines what to do if the desiredName is the same as the name of an existing folder in the current folder.</param>
         /// <returns></returns>
         Task<IStorageFolder> CreateFolderAsync(string desiredName, CreationCollisionOption options);
+        #endregion
 
+
+        #region Get
         /// <summary>
         /// Gets the specified file from the current folder.
         /// </summary>
@@ -110,13 +123,8 @@ namespace P42.SandboxedStorage
         /// <param name="name">The name (or path relative to the current folder) of the file or sub-folder to try to retrieve.</param>
         /// <returns>When this method completes successfully, it returns the file or folder (type <see cref="IStorageItem"/>).</returns>
         Task<IStorageItem> TryGetItemAsync(string name);
+        #endregion
 
-
-        Task<bool> ItemExists(string itemName);
-
-        Task<bool> FileExists(string fileName);
-
-        Task<bool> FolderExists(string folderName);
         #endregion
 
     }

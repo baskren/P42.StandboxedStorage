@@ -129,11 +129,11 @@ namespace SandboxedStorageSample
                                                             {
                                                                 results += test + ": OK\n";
                                                                 test = "StorageFolderExtensions.FileExists(e.StorageFolder,textFileName2)";
-                                                                if (await e.StorageFolder.FileExists(textFileName2))
+                                                                if (e.StorageFolder.FileExists(textFileName2))
                                                                 {
                                                                     results += test + ": OK\n";
                                                                     test += "!await StorageFolderExtensions.FileExists(testFilesFolder, textFileName2)";
-                                                                    if (!await testFilesFolder.FileExists(textFileName2))
+                                                                    if (!testFilesFolder.FileExists(textFileName2))
                                                                     {
                                                                         results += test + ": OK\n";
                                                                         //TODO: Add test to try to delete a folder that still contains files.  Need to see what happens with UWP!
@@ -141,14 +141,14 @@ namespace SandboxedStorageSample
                                                                         await testFilesFolder.DeleteAsync();
                                                                         results += test + ": OK\n";
                                                                         test += "!await StorageFolderExtensions.FolderExists(e.StorageFolder, testFilesFolder.Name)";
-                                                                        if (!await e.StorageFolder.FolderExists(testFilesFolder.Name))
+                                                                        if (!e.StorageFolder.FolderExists(testFilesFolder.Name))
                                                                         {
                                                                             results += test + ": OK\n";
                                                                             test = "textFile.DeleteAsync()";
                                                                             await textFile.DeleteAsync();
                                                                             results += test + ": OK\n";
                                                                             test = "!await StorageFolderExtensions.FileExists(e.StorageFolder, textFileName2)";
-                                                                            if (!await e.StorageFolder.FileExists(textFileName2))
+                                                                            if (!e.StorageFolder.FileExists(textFileName2))
                                                                             {
                                                                                 results += test + ": OK\n";
                                                                                 await DisplayAlert("Success", results, "OK");
@@ -198,14 +198,16 @@ namespace SandboxedStorageSample
             }
             else
                 //Xamarin.Essentials.Preferences.Set(textFilePathKey, e.StorageFile.Path);
-                Preferences.Set(textFilePathKey, e.StorageFile.Path);
+                Preferences.Clear(textFilePathKey);
         }
 
         async Task DisplayFolderContents(IStorageFolder folder)
         {
+            
             if (folder is null)
                 return;
             ShowSpinner();
+            folder.AccessDenialResponse = AccessDenialResponse.Silent;
             if (await folder.GetItemsAsync() is IReadOnlyList<IStorageItem> items)
             {
                 var result = $@"Path {folder.Path}
@@ -225,17 +227,21 @@ CONTENT:
                     result += "\n";
                 }
                 await DisplayAlert("Folder Data:", result, "ok");
+                //await DisplayPromptAsync("Folder Data", result);
             }
             else
                 await DisplayError("Failed to GetItemsAsync for folder [" + folder?.Path + "]");
             HideSpinner();
+            
         }
 
         async Task DisplaySomeTextFileContents(IStorageFile textFile)
         {
+            
             if (textFile is null)
                 return;
             ShowSpinner();
+            textFile.AccessDenialResponse = AccessDenialResponse.Silent;
             if (await textFile.ReadAllTextAsync() is string text)
             {
                 var result = $@"Path {textFile.Path}
@@ -250,10 +256,12 @@ Name: {textFile.Name}
 CONTENT:
 ";
                 await DisplayAlert("Text File Data", result + text.Substring(0, Math.Min(text.Length,200)) + " ...", "ok");
+                //await DisplayPromptAsync("Text File Data", result + text.Substring(0, Math.Min(text.Length, 200)) + " ...");
             }
             else
                 await DisplayError("Failed to get text from file [" + textFile?.Path + "]");
             HideSpinner();
+            
         }
 
         async Task DisplayError(string message)

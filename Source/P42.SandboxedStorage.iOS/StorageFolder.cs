@@ -53,11 +53,63 @@ namespace P42.SandboxedStorage.Native
             return Task.FromResult<IStorageFolder>(new StorageFolder(path));
         }
 
-        internal StorageFolder(string path) : base(path) { }
 
-        public StorageFolder(NSUrl url) : base(url) { }
+        #region Construction
+        internal StorageFolder(string path, bool makeBookmark = false) : base(path, makeBookmark) { }
+
+        public StorageFolder(NSUrl url, bool makeBookmark = false) : base(url, makeBookmark) { }
+        #endregion
+
+
+        #region Private Methods
+        internal override async Task<bool> RequestAccess(string message)
+        {
+            if (await base.RequestAccess(message))
+            {
+                if (await FolderPicker.PickSingleFolderAsync(this) is IStorageFolder iStorageFolder && iStorageFolder is StorageFolder storageFolder)
+                {
+                    Url = storageFolder.Url;
+                    Bookmark = BookmarkExtensions.GetOrCreateBookmark(Url);
+                    return Bookmark != null;
+                }
+            }
+            return false;
+        }
+        #endregion
 
         #region IStorageFolder
+
+        #region Exists
+        public bool ItemExists(string itemName)
+        {
+            var path = System.IO.Path.Combine(Path, itemName);
+            var result = NSFileManager.DefaultManager.FileExists(path);
+            return result;
+        }
+
+        public bool FileExists(string fileName)
+        {
+            var path = System.IO.Path.Combine(Path, fileName);
+            bool isDirectory = false;
+            var result = NSFileManager.DefaultManager.FileExists(path, ref isDirectory);
+            if (isDirectory)
+                return false;
+            return result;
+        }
+
+        public bool FolderExists(string folderName)
+        {
+            var path = System.IO.Path.Combine(Path, folderName);
+            bool isDirectory = false;
+            var result = NSFileManager.DefaultManager.FileExists(path, ref isDirectory);
+            if (!isDirectory)
+                return false;
+            return result;
+        }
+        #endregion
+
+
+        #region Create
         /// <summary>
         /// Creates a new file with the specified name in the current folder.
         /// </summary>
@@ -76,7 +128,7 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            return await Task.Run<IStorageFile>(async () =>
+            return await Task.Run(async () =>
             {
                 if (await GetFileAsync(desiredName) is IStorageFile existingFile)
                 {
@@ -106,12 +158,22 @@ namespace P42.SandboxedStorage.Native
                     }
                 }
 
-                string filepath = System.IO.Path.Combine(Path, desiredName);
-                Url.StartAccessingSecurityScopedResource();
-                File.Create(filepath).Close();
-                Url.StopAccessingSecurityScopedResource();
-                return new StorageFile(filepath);
+                if (!await StartAccess())
+                    return null;
 
+                string filepath = System.IO.Path.Combine(Path, desiredName);
+                File.Create(filepath).Close();
+                //var result = NSFileManager.DefaultManager.CreateFile(filepath, null, new NSDictionary {  });
+                StopAccess();
+                /*
+                if (!result)
+                {
+                    if (AccessDenialResponse != AccessDenialResponse.Silent)
+                        throw new AccessViolationException("Unable to create file [" + filepath + "]");
+                    return null;
+                }
+                */
+                return new StorageFile(filepath, true);
             });
         }
 
@@ -134,44 +196,48 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            return await Task.Run<IStorageFolder>(async () =>
+            if (await GetFolderAsync(desiredName) is IStorageFolder existingFolder)
             {
-                if (await GetFolderAsync(desiredName) is IStorageFolder existingFolder)
+                switch (options)
                 {
-                    switch (options)
-                    {
-                        case CreationCollisionOption.OpenIfExists:
-                            return existingFolder;
+                    case CreationCollisionOption.OpenIfExists:
+                        return existingFolder;
 
-                        case CreationCollisionOption.ReplaceExisting:
-                            await existingFolder.DeleteAsync();
-                            break;
+                    case CreationCollisionOption.ReplaceExisting:
+                        await existingFolder.DeleteAsync();
+                        break;
 
-                        case CreationCollisionOption.GenerateUniqueName:
-                            for (int i = 1; i < 100; i++)
+                    case CreationCollisionOption.GenerateUniqueName:
+                        for (int i = 1; i < 100; i++)
+                        {
+                            string uniqueName = string.Format(desiredName.Substring(0, desiredName.LastIndexOf('.')) + " ({0})" + desiredName.Substring(desiredName.LastIndexOf('.')), i);
+                            if (!(await GetItemAsync(uniqueName) is SandboxedStorage.IStorageItem))
                             {
-                                string uniqueName = string.Format(desiredName.Substring(0, desiredName.LastIndexOf('.')) + " ({0})" + desiredName.Substring(desiredName.LastIndexOf('.')), i);
-                                if (!(await GetItemAsync(uniqueName) is SandboxedStorage.IStorageItem))
-                                {
-                                    desiredName = uniqueName;
-                                    break;
-                                }
+                                desiredName = uniqueName;
+                                break;
                             }
-                            break;
+                        }
+                        break;
 
-                        default:
-                            throw new IOException();
-                    }
+                    default:
+                        throw new IOException();
                 }
+            }
 
-                var newPath = System.IO.Path.Combine(Path, desiredName);
-                Url.StartAccessingSecurityScopedResource();
-                Directory.CreateDirectory(newPath);
-                Url.StopAccessingSecurityScopedResource();
-                return new StorageFolder(newPath);
-            });
+            if (!await StartAccess())
+                return null;
+
+            var newPath = System.IO.Path.Combine(Path, desiredName);
+            Directory.CreateDirectory(newPath);
+            // the above does work but the below does not?!?!
+            //NSFileManager.DefaultManager.CreateDirectory(desiredName, false, new NSDictionary { }, out NSError error);
+            StopAccess();
+            return new StorageFolder(newPath, true);
         }
+        #endregion
 
+
+        #region Get
         /// <summary>
         /// Gets the file with the specified name from the current folder. 
         /// </summary>
@@ -190,33 +256,15 @@ namespace P42.SandboxedStorage.Native
         /// <returns></returns>
         public async Task<IReadOnlyList<IStorageFile>> GetFilesAsync(string pattern = null)
         {
-            await Task.Delay(5).ConfigureAwait(false);
-
-            return await Task.Run<IReadOnlyList<IStorageFile>>(() =>
+            if (await GetItemsAsync(pattern, true, false) is IReadOnlyList<IStorageItem> items)
             {
-                string regex = string.IsNullOrWhiteSpace(pattern)
-                    ? null
-                    : StringExtensions.WildcardToRegex(pattern);
-
-                List<IStorageFile> files = new List<IStorageFile>();
-
-                Url.StartAccessingSecurityScopedResource();
-                //var filePaths = Directory.GetFiles(Path);
-                var filePaths = NSFileManager.DefaultManager.GetDirectoryContent(Path, out NSError error);
-                if (error != null)
-                    return null;
-                Url.StopAccessingSecurityScopedResource();
-                foreach (string filePath in filePaths)
-                {
-                    var x = this.RemoveCurrentFolderFromPath(filePath);
-                    if (x is string fileName)
-                    {
-                        if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(fileName, regex))
-                            files.Add(new StorageFile(filePath));
-                    }
-                }
-                return files.AsReadOnly();
-            });
+                var result = new List<IStorageFile>();
+                foreach (var item in items)
+                    if (item is IStorageFile folder)
+                        result.Add(folder);
+                return result.AsReadOnly();
+            }
+            return null;
         }
 
         /// <summary>
@@ -237,35 +285,17 @@ namespace P42.SandboxedStorage.Native
         /// <returns></returns>
         public async Task<IReadOnlyList<IStorageFolder>> GetFoldersAsync(string pattern = null)
         {
-            await Task.Delay(5).ConfigureAwait(false);
-
-            return await Task.Run<IReadOnlyList<IStorageFolder>>(() =>
+            if (await GetItemsAsync(pattern, true, false) is IReadOnlyList<IStorageItem> items)
             {
-                string regex = string.IsNullOrWhiteSpace(pattern)
-                    ? null
-                    : StringExtensions.WildcardToRegex(pattern);
-
-                List<IStorageFolder> folders = new List<IStorageFolder>();
-
-                var accessAvailable = Url.StartAccessingSecurityScopedResource();
-                //var folderPaths = Directory.GetDirectories(Path);
-                var folderPaths = NSFileManager.DefaultManager.GetDirectoryContent(Url, null, NSDirectoryEnumerationOptions.SkipsSubdirectoryDescendants | NSDirectoryEnumerationOptions.ProducesRelativePathUrls, out NSError error);
-                if (error != null)
-                    return null;
-                Url.StopAccessingSecurityScopedResource();
-
-                foreach (var folderPath in folderPaths)
-                {
-                    //if (this.RemoveCurrentFolderFromPath(folderPath) is string folderName)
-                    var folderName = folderPath.AbsoluteString;
-                    {
-                        if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(folderName, regex))
-                            folders.Add(new StorageFolder(folderPath));
-                    }
-                }
-                return folders.AsReadOnly();
-            });
+                var result = new List<IStorageFolder>();
+                foreach (var item in items)
+                    if (item is IStorageFolder folder)
+                        result.Add(folder);
+                return result.AsReadOnly();
+            }
+            return null;
         }
+
 
         /// <summary>
         /// Gets the file or folder with the specified name from the current folder.
@@ -279,25 +309,64 @@ namespace P42.SandboxedStorage.Native
             return (await GetItemsAsync(name)).FirstOrDefault();
         }
 
+        public async Task<IReadOnlyList<SandboxedStorage.IStorageItem>> GetItemsAsync(string pattern = null)
+            => await GetItemsAsync(pattern, true, true);
+
         /// <summary>
         /// Gets the items in the current folder.
         /// </summary>
         /// <returns></returns>
-        public async Task<IReadOnlyList<SandboxedStorage.IStorageItem>> GetItemsAsync(string pattern = null)
+        public async Task<IReadOnlyList<SandboxedStorage.IStorageItem>> GetItemsAsync(string pattern, bool folders, bool files)
         {
             await Task.Delay(5).ConfigureAwait(false);
 
             List<SandboxedStorage.IStorageItem> items = new List<SandboxedStorage.IStorageItem>();
+            string regex = string.IsNullOrWhiteSpace(pattern)
+                ? null
+                : StringExtensions.WildcardToRegex(pattern);
 
-            if (await GetFoldersAsync(pattern) is IReadOnlyList<IStorageFolder> folders && folders.Any())
-                items.AddRange(folders);
 
-            if (await GetFilesAsync(pattern) is IReadOnlyList<IStorageFile> files && files.Any())
-                items.AddRange(files);
+            if (!await StartAccess())
+                return null;
+
+            var itemUrls = NSFileManager.DefaultManager.GetDirectoryContent(Url, null, NSDirectoryEnumerationOptions.SkipsSubdirectoryDescendants | NSDirectoryEnumerationOptions.ProducesRelativePathUrls, out NSError error);
+            StopAccess();
+            
+            if (error != null)
+            {
+                if (AccessDenialResponse != AccessDenialResponse.Silent)
+                    throw new AccessViolationException(error.LocalizedDescription);
+                return null;
+            }
+            
+
+            foreach (var itemUrl in itemUrls ?? new NSUrl[] { })
+            {
+                if (this.RemoveCurrentFolderFromPath(itemUrl.Path) is string folderName)
+                //var folderName = folderPath.AbsoluteString;
+                {
+                    if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(folderName, regex))
+                    {
+                        
+                        if(itemUrl.TryGetResource(NSUrl.IsDirectoryKey, out NSObject value) && value is NSNumber isDirectory)
+                        {
+                            if (isDirectory.BoolValue)
+                            {
+                                if (folders)
+                                    items.Add(new StorageFolder(itemUrl));
+                            }
+                            else if (files)
+                                items.Add(new StorageFile(itemUrl));
+                        }
+                    }
+                }
+            }
+
 
             var result = items.AsReadOnly();
             return result;
         }
+
 
         /// <summary>
         /// Tries to get the file or folder with the specified name from the current folder.
@@ -312,7 +381,10 @@ namespace P42.SandboxedStorage.Native
 
             return await GetItemAsync(name);
         }
+        #endregion
 
+
+        #region Equality
         public override bool Equals(object obj)
         {
             return Equals(obj as StorageFolder);
@@ -339,60 +411,12 @@ namespace P42.SandboxedStorage.Native
         {
             return !(left == right);
         }
+        #endregion
+
 
         #endregion
 
 
-        public async Task<bool> ItemExists(string itemName)
-        {
-            await Task.Delay(5).ConfigureAwait(false);
-
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                var path = System.IO.Path.Combine(Path, itemName);
-                var result = NSFileManager.DefaultManager.FileExists(path);
-                url.StopAccessingSecurityScopedResource();
-                return result;
-            }
-            return false;
-        }
-
-        public async Task<bool> FileExists(string fileName)
-        {
-            await Task.Delay(5).ConfigureAwait(false);
-
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                var path = System.IO.Path.Combine(Path, fileName);
-                bool isDirectory = false;
-                var result = NSFileManager.DefaultManager.FileExists(path, ref isDirectory);
-                url.StopAccessingSecurityScopedResource();
-                if (isDirectory)
-                    return false;
-                return result;
-            }
-            return false;
-        }
-
-        public async Task<bool> FolderExists(string folderName)
-        {
-            await Task.Delay(5).ConfigureAwait(false);
-
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                var path = System.IO.Path.Combine(Path, folderName);
-                bool isDirectory = false;
-                var result = NSFileManager.DefaultManager.FileExists(path, ref isDirectory);
-                url.StopAccessingSecurityScopedResource();
-                if (!isDirectory)
-                    return false;
-                return result;
-            }
-            return false;
-        }
 
     }
 }

@@ -62,6 +62,18 @@ namespace P42.SandboxedStorage
 
         #region Methods
         /// <summary>
+        /// Read access is permitted
+        /// </summary>
+        /// <returns></returns>
+        Task<bool> CanRead();
+
+        /// <summary>
+        /// Write access is permitted
+        /// </summary>
+        /// <returns></returns>
+        bool CanWrite();
+
+        /// <summary>
         /// Replaces the specified file with a copy of the current file.
         /// </summary>
         /// <param name="fileToReplace">The file to replace.</param>
@@ -145,10 +157,5 @@ namespace P42.SandboxedStorage
         #endregion
 
 
-        Task<bool> CanRead();
-
-        Task<bool> CanWrite();
-
-        Task<bool> CanDelete();
     }
 }

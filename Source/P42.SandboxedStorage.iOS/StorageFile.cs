@@ -62,116 +62,163 @@ namespace P42.SandboxedStorage.Native
 
 
         #region Constructors
-        public StorageFile(string path) : base(path) { }
+        public StorageFile(string path, bool makeBookmark = false) : base(path, makeBookmark) { }
 
-        public StorageFile(NSUrl url) : base(url) { }
+        public StorageFile(NSUrl url, bool makeBookmark = false) : base(url, makeBookmark) { }
+        #endregion
+
+
+        #region Private Methods
+        internal override async Task<bool> RequestAccess(string message)
+        {
+            if (await base.RequestAccess(message))
+            {
+                if (await FilePicker.PickSingleFileAsync(this) is IStorageFile iStorageFile && iStorageFile is StorageFile storageFile)
+                {
+                    Url = storageFile.Url;
+                    Bookmark = BookmarkExtensions.GetOrCreateBookmark(Url);
+                    return CanWrite();
+                }
+            }
+            return false;
+        }
         #endregion
 
 
         #region IStorageFile
-        public async Task CopyAndReplaceAsync(IStorageFile fileToReplace)
-            => await CopyAsync(await fileToReplace.GetParentAsync(), fileToReplace.Name);
 
+        #region Check Access
+        public async Task<bool> CanRead()
+        {
+            if (!await StartAccess(accessDenialResponse: AccessDenialResponse.Silent))
+                return false;
+            var result = NSFileManager.DefaultManager.IsReadableFile(Path);
+            StopAccess();
+            return result;
+        }
+
+        public bool CanWrite()
+        {
+            var result = NSFileManager.DefaultManager.IsWritableFile(Path);
+            return result;
+        }
+
+        internal async Task<bool> StartReadAccess(Action action = null)
+        {
+            var canAccess = CanAccess();
+            var canRead = await CanRead();
+            if (!canAccess || !canRead)
+            {
+                if (AccessDenialResponse == AccessDenialResponse.Exception || AccessDenialResponse == AccessDenialResponse.Default)
+                {
+                    if (action != null)
+                        action.Invoke();
+                    ThrowAccessException();
+                }
+                else
+                    return false;
+            }
+            Url.StartAccessingSecurityScopedResource();
+            return true;
+        }
+
+        internal bool StartWriteAccess(Action action = null)
+        {
+            if (!CanAccess() || !CanWrite())
+            {
+                if (action != null)
+                    action.Invoke();
+                ThrowAccessException();
+            }
+            Url.StartAccessingSecurityScopedResource();
+            return true;
+        }
+        #endregion
+
+
+        #region Copy
+        public async Task CopyAndReplaceAsync(IStorageFile fileToReplace)
+            //=> await CopyAsync(await fileToReplace.GetParentAsync(), fileToReplace.Name);
+            => throw new NotImplementedException();
 
         public async Task<IStorageFile> CopyAsync(IStorageFolder destinationFolder)
             => await CopyAsync(destinationFolder, Name);
 
         public async Task<IStorageFile> CopyAsync(IStorageFolder destinationFolder, string desiredNewName)
         {
-            await Task.Delay(5).ConfigureAwait(false);
-
-            return await Task.Run<IStorageFile>(() =>
+            return await CopyMoveInner(destinationFolder, desiredNewName, (destinationUrl) =>
             {
-                if (destinationFolder is StorageFolder folder &&
-                    folder.Url is NSUrl folderUrl &&
-                    !string.IsNullOrWhiteSpace(desiredNewName) &&
-                    Url is NSUrl url
-                    )
-                {
-                    var destination = folderUrl.Append(desiredNewName, false);
-                    url.StartAccessingSecurityScopedResource();
-                    destination.StartAccessingSecurityScopedResource();
-                    if (NSFileManager.DefaultManager.Copy(url, destination, out NSError error))
-                    {
-                        return new StorageFile(destination);
-                    }
-                    else
-                    {
-                        Console.WriteLine("Cannot copy file [" + url.Path + "] to destination [" + folder.Url.Path + "].");
-                        Console.WriteLine("ERROR: " + error);
-                    }
-                    destination.StopAccessingSecurityScopedResource();
-                    url.StopAccessingSecurityScopedResource();
-                }
-                return null;
+                if (NSFileManager.DefaultManager.Copy(Url, destinationUrl, out NSError error))
+                    return (new StorageFile(destinationUrl,true), error);
+                return (null, error);
             });
         }
+        #endregion
 
 
+        #region Move
         public async Task MoveAndReplaceAsync(IStorageFile fileToReplace)
-        {
-            await Task.Delay(5).ConfigureAwait(false);
-
-            await Task.Run(() =>
-            {
-                if (fileToReplace is StorageFile file &&
-                    file.Url is NSUrl fileUrl &&
-                    Url is NSUrl url)
-                {
-                    url.StartAccessingSecurityScopedResource();
-                    fileUrl.StartAccessingSecurityScopedResource();
-                    if (NSFileManager.DefaultManager.Replace(fileUrl, url,
-                        fileUrl.AppendPathExtension(".bak").LastPathComponent,
-                        NSFileManagerItemReplacementOptions.WithoutDeletingBackupItem,
-                        out NSUrl resultingUrl, out NSError error))
-                    {
-                        Url = resultingUrl;
-                    }
-                    else
-                    {
-                        Console.WriteLine("Cannot replace file at destination [" + fileUrl.Path + "] with [" + url.Path + "].");
-                        Console.WriteLine("ERROR: " + error);
-                    }
-                    fileUrl.StopAccessingSecurityScopedResource();
-                    url.StopAccessingSecurityScopedResource();
-                }
-            });
-        }
+            => throw new NotImplementedException();
 
         public async Task MoveAsync(IStorageFolder destinationFolder)
             => await MoveAsync(destinationFolder, Name);
 
         public async Task MoveAsync(IStorageFolder destinationFolder, string desiredNewName)
         {
-            await Task.Delay(5).ConfigureAwait(false);
-
-            await Task.Run(() =>
+            if (await CopyMoveInner(destinationFolder, desiredNewName, (destinationUrl) =>
             {
-                if (destinationFolder is StorageFolder folder &&
-                    folder.Url is NSUrl folderUrl &&
-                    !string.IsNullOrWhiteSpace(desiredNewName) &&
-                    Url is NSUrl url
-                    )
-                {
-                    var destination = folderUrl.Append(desiredNewName, false);
-                    url.StartAccessingSecurityScopedResource();
-                    destination.StartAccessingSecurityScopedResource();
-                    if (NSFileManager.DefaultManager.Move(url, destination, out NSError error))
-                    {
-                        var newFile = new StorageFile(destination);
-                        Url = newFile.Url;
-                    }
-                    else
-                    {
-                        Console.WriteLine("Cannot move file [" + url.Path + "] to destination [" + folder.Url.Path + "].");
-                        Console.WriteLine("ERROR: " + error);
-                    }
-                    destination.StopAccessingSecurityScopedResource();
-                    url.StopAccessingSecurityScopedResource();
-                }
-            });
+                if (NSFileManager.DefaultManager.Move(Url, destinationUrl, out NSError error))
+                    return (new StorageFile(destinationUrl, true), error);
+                return (null, error);
+            }) is StorageFile result)
+            {
+                Url = result.Url;
+                Bookmark = Url.GetOrCreateBookmark();
+            }
         }
 
+        async Task<IStorageFile> CopyMoveInner(IStorageFolder destinationFolder, string desiredNewName, Func<NSUrl, (IStorageFile file, NSError error)> func)
+        {
+            await Task.Delay(5).ConfigureAwait(false);
+
+            // get access
+            if (string.IsNullOrWhiteSpace(desiredNewName))
+                throw new AccessViolationException("Invalid file name [" + desiredNewName + "]");
+
+            if (!await ((StorageFolder)destinationFolder).StartAccess())
+                return null;
+
+            if (destinationFolder.FileExists(desiredNewName))
+            {
+                ((StorageFolder)destinationFolder).StopAccess();
+                    throw new AccessViolationException("File [" + desiredNewName + "] aready exists in folder [" + destinationFolder.Path + "]");
+            }
+
+            if (!await StartAccess(() => ((StorageFolder)destinationFolder).StopAccess()))
+                return null;
+
+            // Make the copy
+            var destinationUrl = ((StorageFolder)destinationFolder).Url.Append(desiredNewName, false);
+
+            var result = func.Invoke(destinationUrl);
+
+            StopAccess();
+            ((StorageFolder)destinationFolder).StopAccess();
+
+            if (result.error != null)
+            {
+                Console.WriteLine("Cannot copy file [" + Path + "] to destination [" + destinationUrl.Path + "].");
+                Console.WriteLine("ERROR: " + result.error);
+                if (AccessDenialResponse != AccessDenialResponse.Silent)
+                    throw new AccessViolationException(result.error.LocalizedDescription);
+                return null;
+            }
+            return result.file;
+        }
+        #endregion
+
+
+        #region Rename
         public async Task RenameAsync(string desiredName)
             => await RenameAsync(desiredName, NameCollisionOption.FailIfExists);
 
@@ -210,6 +257,8 @@ namespace P42.SandboxedStorage.Native
         }
         #endregion
 
+        #endregion
+
 
 
 
@@ -245,68 +294,61 @@ namespace P42.SandboxedStorage.Native
         */
 
         #region System.IO.File methods
+
+
+        #region Append
         public async Task AppendAllLinesAsync(IEnumerable<string> lines, System.Threading.CancellationToken cancellationToken = default)
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            if (Url is NSUrl url)
-            {
-                var appendText = string.Join("\n", lines);
-                await AppendAllTextAsync(appendText);
-            }
+
+            StartWriteAccess();
+            var appendText = string.Join("\n", lines);
+            await AppendAllTextAsync(appendText);
+            StopAccess();
         }
 
         public async Task AppendAllTextAsync(string contents, System.Threading.CancellationToken cancellationToken = default)
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                await File.AppendAllTextAsync(url.Path, contents, cancellationToken);
-                url.StopAccessingSecurityScopedResource();
-            }
+            StartWriteAccess();
+            await File.AppendAllTextAsync(Path, contents, cancellationToken);
+            StopAccess();
         }
+        #endregion
 
+
+        #region Read
         public async Task<byte[]> ReadAllBytesAsync(System.Threading.CancellationToken cancellationToken = default)
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            if (Url is NSUrl url)
+            //if (!await StartReadAccess())
+            if (!await StartAccess())
+                return null;
+
+            var data = NSData.FromUrl(Url, NSDataReadingOptions.Mapped, out NSError error);
+            StopAccess();
+
+            if (error != null)
             {
-                url.StartAccessingSecurityScopedResource();
-                //var bytes = await File.ReadAllBytesAsync(url.Path, cancellationToken);
-
-                var readable = NSFileManager.DefaultManager.IsReadableFile(url.Path);
-
-                var data = NSData.FromUrl(url, NSDataReadingOptions.Mapped, out NSError error);
-                var bytes = data.ToArray();
-
-
-
-                url.StopAccessingSecurityScopedResource();
-                return bytes;
+                if (AccessDenialResponse != AccessDenialResponse.Silent)
+                    throw new AccessViolationException(error.LocalizedDescription);
+                return null;
             }
-            return null;
+            var bytes = data?.ToArray();
+            return bytes;
         }
 
         public async Task<string[]> ReadAllLinesAsync(System.Threading.CancellationToken cancellationToken = default)
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            if (Url is NSUrl url)
+            if (await ReadAllTextAsync(cancellationToken) is string text && text.Length > 0)
             {
-                /*
-                url.StartAccessingSecurityScopedResource();
-                var lines = await File.ReadAllLinesAsync(url.Path, cancellationToken);
-                url.StopAccessingSecurityScopedResource();
+                var lines = text.Split('\n');
                 return lines;
-                */
-                if (await ReadAllTextAsync(cancellationToken) is string text && text.Length > 0)
-                {
-                    var lines = text.Split('\n');
-                    return lines;
-                }
             }
             return null;
         }
@@ -315,25 +357,17 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            if (Url is NSUrl url)
+            if (await ReadAllBytesAsync(cancellationToken) is byte[] bytes && bytes.Length > 0)
             {
-                /*
-                url.StartAccessingSecurityScopedResource();
-                //var content = await File.ReadAllTextAsync(url.Path, cancellationToken);
-                var data = NSData.FromUrl(url);
-                var content = NSString.FromData(data, NSStringEncoding.UTF8);
-                url.StopAccessingSecurityScopedResource();
-                return content;
-                */
-                if (await ReadAllBytesAsync(cancellationToken) is byte[] bytes && bytes.Length > 0)
-                {
-                    var text = System.Text.Encoding.UTF8.GetString(bytes);
-                    return text;
-                }
+                var text = System.Text.Encoding.UTF8.GetString(bytes);
+                return text;
             }
             return null;
         }
+        #endregion
 
+
+        #region Write
         public async Task WriteAllBytesAsync(byte[] bytes, System.Threading.CancellationToken cancellationToken = default)
         {
             if (bytes == null || bytes.Length < 0)
@@ -341,14 +375,11 @@ namespace P42.SandboxedStorage.Native
 
             await Task.Delay(5).ConfigureAwait(false);
 
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                //await File.WriteAllBytesAsync(url.Path, bytes, cancellationToken);
-                var data = NSData.FromArray(bytes);
-                data.Save(url, true);
-                url.StopAccessingSecurityScopedResource();
-            }
+            StartWriteAccess();
+            var data = NSData.FromArray(bytes);
+            data.Save(Url, true);
+            StopAccess();
+            
         }
 
         public async Task WriteAllLinesAsync(IEnumerable<string> lines, System.Threading.CancellationToken cancellationToken = default)
@@ -358,14 +389,6 @@ namespace P42.SandboxedStorage.Native
 
             await Task.Delay(5).ConfigureAwait(false);
 
-            /*
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                await File.WriteAllLinesAsync(url.Path, lines, cancellationToken);
-                url.StopAccessingSecurityScopedResource();
-            }
-            */
             var text = string.Join('\n', lines);
             await WriteAllTextAsync(text);
         }
@@ -374,18 +397,13 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            /*
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                await File.WriteAllTextAsync(url.Path, content, cancellationToken);
-                url.StopAccessingSecurityScopedResource();
-            }
-            */
             var bytes = System.Text.Encoding.UTF8.GetBytes(content);
             await WriteAllBytesAsync(bytes, cancellationToken);
         }
+        #endregion
 
+
+        #region Equality
         public override bool Equals(object obj)
         {
             return Equals(obj as StorageFile);
@@ -414,42 +432,9 @@ namespace P42.SandboxedStorage.Native
         }
         #endregion
 
+        #endregion
 
-        public async Task<bool> CanRead()
-        {
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                var result = NSFileManager.DefaultManager.IsReadableFile(Path);
-                url.StopAccessingSecurityScopedResource();
-                return await Task.FromResult<bool>(result);
-            }
-            return await Task.FromResult<bool>(false);
-        }
 
-        public async Task<bool> CanWrite()
-        {
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                var result = NSFileManager.DefaultManager.IsWritableFile(Path);
-                url.StopAccessingSecurityScopedResource();
-                return await Task.FromResult<bool>(result);
-            }
-            return await Task.FromResult<bool>(false);
-        }
-
-        public async Task<bool> CanDelete()
-        {
-            if (Url is NSUrl url)
-            {
-                url.StartAccessingSecurityScopedResource();
-                var result = NSFileManager.DefaultManager.IsDeletableFile(Path);
-                url.StopAccessingSecurityScopedResource();
-                return await Task.FromResult<bool>(result);
-            }
-            return await Task.FromResult<bool>(false);
-        }
 
     }
 }
