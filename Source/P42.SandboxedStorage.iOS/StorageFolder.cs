@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Foundation;
@@ -32,7 +33,7 @@ namespace P42.SandboxedStorage.Native
     /// <item><term>Windows Phone Silverlight</term><description>Windows Phone 8.0 or later</description></item>
     /// <item><term>Windows (Desktop Apps)</term><description>Windows 7 or later</description></item></list>
     /// </remarks>
-    class StorageFolder : StorageItem, IStorageFolder
+    class StorageFolder : StorageItem, IStorageFolder, IEquatable<StorageFolder>
     {
         // PIZZA
 
@@ -71,30 +72,30 @@ namespace P42.SandboxedStorage.Native
         /// <param name="desiredName">The name of the new file to create in the current folder.</param>
         /// <param name="options">One of the enumeration values that determines how to handle the collision if a file with the specified desiredName already exists in the current folder.</param>
         /// <returns>When this method completes, it returns a StorageFile that represents the new file.</returns>
-        public Task<IStorageFile> CreateFileAsync(string desiredName, CreationCollisionOption options)
+        public async Task<IStorageFile> CreateFileAsync(string desiredName, CreationCollisionOption options)
         {
-            return Task.Run<IStorageFile>(() =>
-            {
-                string filepath = System.IO.Path.Combine(Path, desiredName);
+            await Task.Delay(5).ConfigureAwait(false);
 
-                if (File.Exists(filepath))
+            return await Task.Run<IStorageFile>(async () =>
+            {
+                if (await GetFileAsync(desiredName) is IStorageFile existingFile)
                 {
                     switch (options)
                     {
                         case CreationCollisionOption.OpenIfExists:
-                            return new StorageFile(filepath);
+                            return existingFile;
 
                         case CreationCollisionOption.ReplaceExisting:
-                            File.Delete(filepath);
+                            await existingFile.DeleteAsync();
                             break;
 
                         case CreationCollisionOption.GenerateUniqueName:
                             for (int i = 1; i < 100; i++)
                             {
-                                string newPath = string.Format(filepath.Substring(0, filepath.LastIndexOf('.')) + " ({0})" + filepath.Substring(filepath.LastIndexOf('.')), i);
-                                if (!File.Exists(newPath))
+                                string newName = string.Format(desiredName.Substring(0, desiredName.LastIndexOf('.')) + " ({0})" + desiredName.Substring(desiredName.LastIndexOf('.')), i);
+                                if (!(await GetFileAsync(newName) is IStorageFile))
                                 {
-                                    filepath = newPath;
+                                    desiredName = newName;
                                     break;
                                 }
                             }
@@ -105,12 +106,14 @@ namespace P42.SandboxedStorage.Native
                     }
                 }
 
+                string filepath = System.IO.Path.Combine(Path, desiredName);
+                Url.StartAccessingSecurityScopedResource();
                 File.Create(filepath).Close();
-
+                Url.StopAccessingSecurityScopedResource();
                 return new StorageFile(filepath);
 
             });
-            }
+        }
 
         /// <summary>
         /// Creates a new subfolder with the specified name in the current folder.
@@ -127,30 +130,30 @@ namespace P42.SandboxedStorage.Native
         /// <param name="desiredName">The name of the new subfolder to create in the current folder.</param>
         /// <param name="options">One of the enumeration values that determines how to handle the collision if a subfolder with the specified desiredName already exists in the current folder.</param>
         /// <returns>When this method completes, it returns a StorageFolder that represents the new subfolder.</returns>
-        public Task<IStorageFolder> CreateFolderAsync(string desiredName, CreationCollisionOption options)
+        public async Task<IStorageFolder> CreateFolderAsync(string desiredName, CreationCollisionOption options)
         {
-            return Task.Run<IStorageFolder>(() =>
-            {
-                string newpath = System.IO.Path.Combine(Path, desiredName);
+            await Task.Delay(5).ConfigureAwait(false);
 
-                if (Directory.Exists(newpath))
+            return await Task.Run<IStorageFolder>(async () =>
+            {
+                if (await GetFolderAsync(desiredName) is IStorageFolder existingFolder)
                 {
                     switch (options)
                     {
                         case CreationCollisionOption.OpenIfExists:
-                            return new StorageFolder(newpath);
+                            return existingFolder;
 
                         case CreationCollisionOption.ReplaceExisting:
-                            Directory.Delete(newpath);
+                            await existingFolder.DeleteAsync();
                             break;
 
                         case CreationCollisionOption.GenerateUniqueName:
                             for (int i = 1; i < 100; i++)
                             {
-                                string uniquePath = string.Format(newpath.Substring(0, newpath.LastIndexOf('.')) + " ({0})" + newpath.Substring(newpath.LastIndexOf('.')), i);
-                                if (!File.Exists(uniquePath))
+                                string uniqueName = string.Format(desiredName.Substring(0, desiredName.LastIndexOf('.')) + " ({0})" + desiredName.Substring(desiredName.LastIndexOf('.')), i);
+                                if (!(await GetItemAsync(uniqueName) is SandboxedStorage.IStorageItem))
                                 {
-                                    newpath = uniquePath;
+                                    desiredName = uniqueName;
                                     break;
                                 }
                             }
@@ -161,9 +164,11 @@ namespace P42.SandboxedStorage.Native
                     }
                 }
 
-                Directory.CreateDirectory(newpath);
-
-                return new StorageFolder(newpath);
+                var newPath = System.IO.Path.Combine(Path, desiredName);
+                Url.StartAccessingSecurityScopedResource();
+                Directory.CreateDirectory(newPath);
+                Url.StopAccessingSecurityScopedResource();
+                return new StorageFolder(newPath);
             });
         }
 
@@ -176,17 +181,7 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            return await Task.Run<IStorageFile>(() =>
-            {
-                string filepath = System.IO.Path.Combine(Path, filename);
-
-                if (!File.Exists(filepath))
-                {
-                    throw new FileNotFoundException();
-                }
-
-                return new StorageFile(filepath);
-            });
+            return (await GetFilesAsync(filename)).FirstOrDefault();
         }
 
         /// <summary>
@@ -197,18 +192,31 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            List<IStorageFile> files = new List<IStorageFile>();
+            return await Task.Run<IReadOnlyList<IStorageFile>>(() =>
+            {
+                string regex = string.IsNullOrWhiteSpace(pattern)
+                    ? null
+                    : StringExtensions.WildcardToRegex(pattern);
 
-            string regex = string.IsNullOrWhiteSpace(pattern)
-                ? null
-                : StringExtensions.WildcardToRegex(pattern);
+                List<IStorageFile> files = new List<IStorageFile>();
 
-            foreach (string filename in Directory.GetFiles(Path))
-                if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(filename, regex))
-                    files.Add(new StorageFile(System.IO.Path.Combine(Path, filename)));
-
-            var result = files.AsReadOnly();
-            return await Task.FromResult<IReadOnlyList<IStorageFile>>(result);
+                Url.StartAccessingSecurityScopedResource();
+                //var filePaths = Directory.GetFiles(Path);
+                var filePaths = NSFileManager.DefaultManager.GetDirectoryContent(Path, out NSError error);
+                if (error != null)
+                    return null;
+                Url.StopAccessingSecurityScopedResource();
+                foreach (string filePath in filePaths)
+                {
+                    var x = this.RemoveCurrentFolderFromPath(filePath);
+                    if (x is string fileName)
+                    {
+                        if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(fileName, regex))
+                            files.Add(new StorageFile(filePath));
+                    }
+                }
+                return files.AsReadOnly();
+            });
         }
 
         /// <summary>
@@ -220,16 +228,7 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            return await Task.Run<IStorageFolder>(() =>
-            {
-                string folderpath = System.IO.Path.Combine(Path, name);
-
-                if (!Directory.Exists(folderpath))
-                {
-                    throw new FileNotFoundException();
-                }
-                return new StorageFolder(folderpath);
-            });
+            return (await GetFoldersAsync(name)).FirstOrDefault();
         }
 
         /// <summary>
@@ -240,18 +239,30 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            List<IStorageFolder> folders = new List<IStorageFolder>();
-
-            string regex = string.IsNullOrWhiteSpace(pattern)
-                ? null
-                : StringExtensions.WildcardToRegex(pattern);
-
             return await Task.Run<IReadOnlyList<IStorageFolder>>(() =>
             {
-                foreach (string foldername in Directory.GetDirectories(Path))
-                    if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(foldername, regex))
-                        folders.Add(new StorageFolder(System.IO.Path.Combine(Path, foldername)));
-                
+                string regex = string.IsNullOrWhiteSpace(pattern)
+                    ? null
+                    : StringExtensions.WildcardToRegex(pattern);
+
+                List<IStorageFolder> folders = new List<IStorageFolder>();
+
+                var accessAvailable = Url.StartAccessingSecurityScopedResource();
+                //var folderPaths = Directory.GetDirectories(Path);
+                var folderPaths = NSFileManager.DefaultManager.GetDirectoryContent(Url, null, NSDirectoryEnumerationOptions.SkipsSubdirectoryDescendants | NSDirectoryEnumerationOptions.ProducesRelativePathUrls, out NSError error);
+                if (error != null)
+                    return null;
+                Url.StopAccessingSecurityScopedResource();
+
+                foreach (var folderPath in folderPaths)
+                {
+                    //if (this.RemoveCurrentFolderFromPath(folderPath) is string folderName)
+                    var folderName = folderPath.AbsoluteString;
+                    {
+                        if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(folderName, regex))
+                            folders.Add(new StorageFolder(folderPath));
+                    }
+                }
                 return folders.AsReadOnly();
             });
         }
@@ -261,49 +272,28 @@ namespace P42.SandboxedStorage.Native
         /// </summary>
         /// <param name="name">The name (or path relative to the current folder) of the file or folder to get.</param>
         /// <returns></returns>
-        public async Task<IStorageItem> GetItemAsync(string name)
+        public async Task<SandboxedStorage.IStorageItem> GetItemAsync(string name)
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            return await Task.Run<IStorageItem>(() =>
-            {
-                foreach (string foldername in Directory.GetDirectories(Path))
-                {
-                    if (foldername == name)
-                        return new StorageFolder(System.IO.Path.Combine(Path, foldername));
-                }
-
-                foreach (string filename in Directory.GetFiles(Path))
-                {
-                    if(filename == name)
-                        return new StorageFile(System.IO.Path.Combine(Path, filename));
-                }
-
-                return null;
-            });
+            return (await GetItemsAsync(name)).FirstOrDefault();
         }
 
         /// <summary>
         /// Gets the items in the current folder.
         /// </summary>
         /// <returns></returns>
-        public async Task<IReadOnlyList<IStorageItem>> GetItemsAsync(string pattern = null)
+        public async Task<IReadOnlyList<SandboxedStorage.IStorageItem>> GetItemsAsync(string pattern = null)
         {
-            await Task.Delay(5);
+            await Task.Delay(5).ConfigureAwait(false);
 
-            List<IStorageItem> items = new List<IStorageItem>();
+            List<SandboxedStorage.IStorageItem> items = new List<SandboxedStorage.IStorageItem>();
 
-            string regex = string.IsNullOrWhiteSpace(pattern)
-                ? null
-                : StringExtensions.WildcardToRegex(pattern);
+            if (await GetFoldersAsync(pattern) is IReadOnlyList<IStorageFolder> folders && folders.Any())
+                items.AddRange(folders);
 
-            foreach (string foldername in Directory.GetDirectories(Path))
-                if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(foldername, regex))
-                    items.Add(new StorageFolder(System.IO.Path.Combine(Path, foldername)));
-
-            foreach (string filename in Directory.GetFiles(Path))
-                if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(filename, regex))
-                    items.Add(new StorageFile(System.IO.Path.Combine(Path, filename)));
+            if (await GetFilesAsync(pattern) is IReadOnlyList<IStorageFile> files && files.Any())
+                items.AddRange(files);
 
             var result = items.AsReadOnly();
             return result;
@@ -316,23 +306,93 @@ namespace P42.SandboxedStorage.Native
         /// <param name="name">The name (or path relative to the current folder) of the file or folder to get.</param>
         /// <returns>When this method completes successfully, it returns an IStorageItem that represents the specified file or folder.
         /// If the specified file or folder is not found, this method returns null instead of raising an exception.</returns>
-        public Task<IStorageItem> TryGetItemAsync(string name)
+        public async Task<SandboxedStorage.IStorageItem> TryGetItemAsync(string name)
         {
-            return Task.Run<IStorageItem>(() =>
-            {
-                string itempath = System.IO.Path.Combine(Path, name);
+            await Task.Delay(5).ConfigureAwait(false);
 
-                if (File.Exists(itempath))
-                    return new StorageFile(itempath);
-                else if (Directory.Exists(itempath))
-                    return new StorageFolder(itempath);
+            return await GetItemAsync(name);
+        }
 
-                return null;
-            });
+        public override bool Equals(object obj)
+        {
+            return Equals(obj as StorageFolder);
+        }
+
+        public bool Equals(StorageFolder other)
+        {
+            return other != null &&
+                   base.Equals(other) &&
+                   Path == other.Path;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(base.GetHashCode(), Path);
+        }
+
+        public static bool operator ==(StorageFolder left, StorageFolder right)
+        {
+            return EqualityComparer<StorageFolder>.Default.Equals(left, right);
+        }
+
+        public static bool operator !=(StorageFolder left, StorageFolder right)
+        {
+            return !(left == right);
         }
 
         #endregion
 
+
+        public async Task<bool> ItemExists(string itemName)
+        {
+            await Task.Delay(5).ConfigureAwait(false);
+
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                var path = System.IO.Path.Combine(Path, itemName);
+                var result = NSFileManager.DefaultManager.FileExists(path);
+                url.StopAccessingSecurityScopedResource();
+                return result;
+            }
+            return false;
+        }
+
+        public async Task<bool> FileExists(string fileName)
+        {
+            await Task.Delay(5).ConfigureAwait(false);
+
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                var path = System.IO.Path.Combine(Path, fileName);
+                bool isDirectory = false;
+                var result = NSFileManager.DefaultManager.FileExists(path, ref isDirectory);
+                url.StopAccessingSecurityScopedResource();
+                if (isDirectory)
+                    return false;
+                return result;
+            }
+            return false;
+        }
+
+        public async Task<bool> FolderExists(string folderName)
+        {
+            await Task.Delay(5).ConfigureAwait(false);
+
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                var path = System.IO.Path.Combine(Path, folderName);
+                bool isDirectory = false;
+                var result = NSFileManager.DefaultManager.FileExists(path, ref isDirectory);
+                url.StopAccessingSecurityScopedResource();
+                if (!isDirectory)
+                    return false;
+                return result;
+            }
+            return false;
+        }
 
     }
 }

@@ -70,17 +70,14 @@ namespace P42.SandboxedStorage
         /// <seealso cref="StorageItemTypes"/>
         bool IsOfType(StorageItemTypes type);
 
-        /// <summary>
-        /// Deletes the current item. 
-        /// </summary>
-        /// <returns></returns>
-        Task DeleteAsync();
+        Task<bool> Exists();
+
 
         /// <summary>
         /// Deletes the current item, optionally deleting it permanently. 
         /// </summary>
         /// <returns></returns>
-        Task DeleteAsync(StorageDeleteOption option);
+        Task DeleteAsync(StorageDeleteOption option = StorageDeleteOption.Default);
 
         #endregion
     }

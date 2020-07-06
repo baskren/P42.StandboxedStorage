@@ -110,6 +110,13 @@ namespace P42.SandboxedStorage
         /// <param name="name">The name (or path relative to the current folder) of the file or sub-folder to try to retrieve.</param>
         /// <returns>When this method completes successfully, it returns the file or folder (type <see cref="IStorageItem"/>).</returns>
         Task<IStorageItem> TryGetItemAsync(string name);
+
+
+        Task<bool> ItemExists(string itemName);
+
+        Task<bool> FileExists(string fileName);
+
+        Task<bool> FolderExists(string folderName);
         #endregion
 
     }

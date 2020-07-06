@@ -6,7 +6,7 @@ using Foundation;
 
 namespace P42.SandboxedStorage.Native
 {
-    class StorageItem
+    class StorageItem : IStorageItem, IEquatable<StorageItem>
     {
         private static NSData BookmarkForUrl(NSUrl url)
         {
@@ -20,8 +20,9 @@ namespace P42.SandboxedStorage.Native
                 foreach (var bookmark in bookmarks)
                 {
                     var bookmarkUrl = NSUrl.FromBookmarkData(bookmark,
-                        //NSUrlBookmarkResolutionOptions.WithSecurityScope,
-                        NSUrlBookmarkResolutionOptions.WithoutUI,
+                        NSUrlBookmarkResolutionOptions.WithSecurityScope,
+                        //NSUrlBookmarkResolutionOptions.WithoutUI,
+                        //(NSUrlBookmarkResolutionOptions)0,
                         null,
                         out bool isStale,
                         out NSError error1
@@ -29,7 +30,8 @@ namespace P42.SandboxedStorage.Native
                     if (bookmarkUrl != null && error1 == null)
                     {
                         if (bookmarkUrl.Path == url.Path)
-                            return bookmark;
+                            if (!isStale)
+                                return bookmark;
                     }
                     else
                     {
@@ -42,7 +44,7 @@ namespace P42.SandboxedStorage.Native
                     }
                 }
 
-                var newBookmark = url.CreateBookmarkData(NSUrlBookmarkCreationOptions.SuitableForBookmarkFile, new string[] { }, null, out NSError error2);
+                var newBookmark = url.CreateBookmarkData(NSUrlBookmarkCreationOptions.WithSecurityScope, new string[] { }, null, out NSError error2);
                 if (error2 != null)
                 {
                     Console.WriteLine("Can not get bookmark for url path [" + url.Path + "].");
@@ -59,6 +61,106 @@ namespace P42.SandboxedStorage.Native
             return null;
         }
 
+        #region Public Properties
+        /// <summary>
+        /// Gets the name of the file including the file name extension.
+        /// </summary>
+        public string Name
+        //    => System.IO.Path.GetFileName(Path);
+        {
+            get
+            {
+                if (Url is NSUrl url)
+                    return url.LastPathComponent;
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Gets the full file-system path of the current file, if the file has a path.
+        /// </summary>
+        public string Path
+        {
+            get
+            {
+                if (Url is NSUrl url)
+                    return url.Path;
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Gets the attributes of a file.
+        /// </summary>
+        public FileAttributes Attributes
+            => FileAttributesHelper.FromIOFileAttributes(File.GetAttributes(Path));
+
+        /// <summary>
+        /// Gets the date and time when the current file was created. 
+        /// </summary>
+        public DateTimeOffset DateCreated
+        {
+            get
+            {
+                if (FileAttributes is NSFileAttributes attributes)
+                {
+                    var appleDate = attributes.CreationDate;
+                    var dateTime = (DateTime)appleDate;
+                    return (DateTimeOffset)dateTime;
+                }
+                return DateTimeOffset.MinValue;
+                //var utc = File.GetCreationTimeUtc(Path);
+                //var local = File.GetCreationTime(Path);
+                //var offset = local - utc;
+                //return new DateTimeOffset(local, offset);
+            }
+        }
+
+        /// <summary>
+        /// Gets the timestamp of the last time the file was modified.
+        /// </summary>
+        public DateTimeOffset DateModified
+        {
+            get
+            {
+                if (FileAttributes is NSFileAttributes attributes)
+                {
+                    var appleDate = attributes.ModificationDate;
+                    var dateTime = (DateTime)appleDate;
+                    return (DateTimeOffset)dateTime;
+                }
+                return DateTimeOffset.MinValue;
+                /*
+                DateTime time;
+                TimeSpan offset;
+                time = File.GetLastWriteTime(Path);
+                offset = time.Subtract(File.GetLastWriteTimeUtc(Path));
+                return new DateTimeOffset(time, offset);
+                */
+            }
+        }
+
+        /// <summary>
+        /// Gets the size of the file in bytes.
+        /// </summary>
+        public ulong Size
+        {
+            get
+            {
+                if (FileAttributes is NSFileAttributes attributes)
+                {
+                    var size = attributes.Size;
+                    return size.Value;
+                }
+                return 0;
+                //FileInfo fi = new FileInfo(Path);
+                //return (ulong)fi.Length;
+            }
+        }
+        #endregion
+
+
+        #region Private Properties
         NSData _bookmark;
         internal NSUrl Url
         {
@@ -90,33 +192,22 @@ namespace P42.SandboxedStorage.Native
             }
         }
 
-        /// <summary>
-        /// Gets the name of the file including the file name extension.
-        /// </summary>
-        public string Name
-        //    => System.IO.Path.GetFileName(Path);
+        NSFileAttributes FileAttributes
         {
             get
             {
-                if (Url is NSUrl url)
-                    return url.LastPathComponent;
+                Url.StartAccessingSecurityScopedResource();
+                var attributes = NSFileManager.DefaultManager.GetAttributes(Path, out NSError error);
+                Url.StopAccessingSecurityScopedResource();
+                if (error == null)
+                    return attributes;
                 return null;
             }
         }
 
-        /// <summary>
-        /// Gets the full file-system path of the current file, if the file has a path.
-        /// </summary>
-        public string Path
-        {
-            get
-            {
-                if (Url is NSUrl url)
-                    return url.Path;
-                return null;
-            }
-        }
+        #endregion
 
+        #region Construction
         public StorageItem(string path)
         {
             Url = NSUrl.CreateFileUrl(path, null);
@@ -131,9 +222,11 @@ namespace P42.SandboxedStorage.Native
             if (Url == null)
                 throw new ArgumentException("Cannot initialize Native.StorageItem for URL [" + url + "]");
         }
+        #endregion
 
 
 
+        #region Methods
         /// <summary>
         /// Determines whether the current <see cref="StorageFile"/> matches the specified <see cref="StorageItemTypes"/> value.
         /// </summary>
@@ -144,89 +237,37 @@ namespace P42.SandboxedStorage.Native
             => type == StorageItemTypes.File;
 
         /// <summary>
-        /// Gets the attributes of a file.
-        /// </summary>
-        public FileAttributes Attributes
-            => FileAttributesHelper.FromIOFileAttributes(File.GetAttributes(Path));
-
-        /// <summary>
-        /// Gets the date and time when the current file was created. 
-        /// </summary>
-        public DateTimeOffset DateCreated
-        {
-            get
-            {
-                var utc = File.GetCreationTimeUtc(Path);
-                var local = File.GetCreationTime(Path);
-                var offset = local - utc;
-                return new DateTimeOffset(local, offset);
-            }
-        }
-
-        /// <summary>
-        /// Gets the timestamp of the last time the file was modified.
-        /// </summary>
-        public DateTimeOffset DateModified
-        {
-            get
-            {
-                DateTime time;
-                TimeSpan offset;
-                time = File.GetLastWriteTime(Path);
-                offset = time.Subtract(File.GetLastWriteTimeUtc(Path));
-                return new DateTimeOffset(time, offset);
-            }
-        }
-
-        /// <summary>
-        /// Gets the size of the file in bytes.
-        /// </summary>
-        public ulong Size
-        {
-            get
-            {
-                FileInfo fi = new FileInfo(Path);
-                return (ulong)fi.Length;
-            }
-        }
-
-
-
-        /// <summary>
         /// Indicates whether the current file is equal to the specified file.
         /// </summary>
-        /// <param name="item">The <see cref="IStorageItem"/>  object that represents a file to compare against.</param>
+        /// <param name="item">The <see cref="SandboxedStorage.IStorageItem"/>  object that represents a file to compare against.</param>
         /// <returns>Returns true if the current file is equal to the specified file; otherwise false.</returns>
-        public bool IsEqual(IStorageItem item)
+        public bool IsEqual(SandboxedStorage.IStorageItem item)
             => Path == item.Path;
 
         /// <summary>
         /// Gets the parent folder of the current file.
         /// </summary>
         /// <returns></returns>
-        public Task<IStorageFolder> GetParentAsync()
+        public async Task<IStorageFolder> GetParentAsync()
         {
-            return Task.Run<IStorageFolder>(() =>
+            await Task.Delay(5).ConfigureAwait(false);
+
+            return await Task.Run<IStorageFolder>(() =>
             {
-                var parent = Directory.GetParent(Path);
-                return parent == null ? null : new StorageFolder(parent.FullName);
+                var parentUrl = Url.RemoveLastPathComponent();
+                return new StorageFolder(parentUrl);
             });
         }
-
-        /// <summary>
-        /// Deletes the current file.
-        /// </summary>
-        /// <returns></returns>
-        public Task DeleteAsync()
-            => DeleteAsync(StorageDeleteOption.Default);
-
 
         /// <summary>
         /// Deletes the current file, optionally deleting the item permanently.
         /// </summary>
         /// <returns></returns>
-        public Task DeleteAsync(StorageDeleteOption option)
-            => Task.Run(() =>
+        public async Task DeleteAsync(StorageDeleteOption option = StorageDeleteOption.Default)
+        {
+            await Task.Delay(5).ConfigureAwait(false);
+
+            await Task.Run(() =>
             {
                 if (Url is NSUrl url)
                 {
@@ -251,6 +292,47 @@ namespace P42.SandboxedStorage.Native
                 }
                 return Task.CompletedTask;
             });
+        }
+
+        public override bool Equals(object obj)
+        {
+            return Equals(obj as StorageItem);
+        }
+
+        public bool Equals(StorageItem other)
+        {
+            return other != null &&
+                   Path == other.Path;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Path);
+        }
+
+        public static bool operator ==(StorageItem left, StorageItem right)
+        {
+            return EqualityComparer<StorageItem>.Default.Equals(left, right);
+        }
+
+        public static bool operator !=(StorageItem left, StorageItem right)
+        {
+            return !(left == right);
+        }
+
+        public async Task<bool> Exists()
+        {
+            if (Url is NSUrl url)
+            {
+                url.StartAccessingSecurityScopedResource();
+                var result = NSFileManager.DefaultManager.FileExists(Path);
+                url.StopAccessingSecurityScopedResource();
+                return await Task.FromResult<bool>(result);
+            }
+            return await Task.FromResult<bool>(false);
+        }
+
+        #endregion
 
     }
 }

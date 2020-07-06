@@ -5,7 +5,7 @@
 	<key>CFBundleName</key>
 	<string>SandboxedStorageSample</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.P42.SandboxedSandboxedStorageSample-MacOS</string>
+	<string>com.P42.SandboxedStorageSample-MacOS</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleVersion</key>

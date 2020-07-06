@@ -145,6 +145,10 @@ namespace P42.SandboxedStorage
         #endregion
 
 
+        Task<bool> CanRead();
 
+        Task<bool> CanWrite();
+
+        Task<bool> CanDelete();
     }
 }

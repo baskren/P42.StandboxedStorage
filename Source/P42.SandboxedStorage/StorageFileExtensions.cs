@@ -21,6 +21,7 @@ namespace P42.SandboxedStorage
             return PlatformDelegate.GetFileFromPathAsync?.Invoke(path) ?? Task.FromResult<IStorageFile>(default);
         }
 
+        /*
         /// <summary>
         /// Asynchronously append a list of lines to an IStorageFile
         /// </summary>
@@ -90,6 +91,6 @@ namespace P42.SandboxedStorage
         /// <returns></returns>
         public static Task WriteAllTextAsync(IStorageFile storageFile, string content, System.Threading.CancellationToken cancellationToken = default)
             => storageFile?.WriteAllTextAsync(content, cancellationToken);
-
+        */
     }
 }

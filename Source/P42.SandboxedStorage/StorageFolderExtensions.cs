@@ -20,6 +20,7 @@ namespace P42.SandboxedStorage
             return PlatformDelegate.GetFolderFromPathAsync?.Invoke(path) ?? Task.FromResult<IStorageFolder>(null);
         }
 
+        /*
         public static async Task<bool> FileExists(this IStorageFolder storageFolder, string fileName)
         {
             if (storageFolder is null || string.IsNullOrWhiteSpace(fileName))
@@ -40,7 +41,7 @@ namespace P42.SandboxedStorage
                 return false;
             return await storageFolder.GetItemAsync(itemName) != null;
         }
-
+        */
         public static async Task<IStorageFile> GetOrCreateFileAsync(this IStorageFolder storageFolder, string fileName)
         {
             if (storageFolder is null)

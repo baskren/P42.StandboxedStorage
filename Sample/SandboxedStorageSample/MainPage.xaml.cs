@@ -129,11 +129,11 @@ namespace SandboxedStorageSample
                                                             {
                                                                 results += test + ": OK\n";
                                                                 test = "StorageFolderExtensions.FileExists(e.StorageFolder,textFileName2)";
-                                                                if (await StorageFolderExtensions.FileExists(e.StorageFolder, textFileName2))
+                                                                if (await e.StorageFolder.FileExists(textFileName2))
                                                                 {
                                                                     results += test + ": OK\n";
                                                                     test += "!await StorageFolderExtensions.FileExists(testFilesFolder, textFileName2)";
-                                                                    if (!await StorageFolderExtensions.FileExists(testFilesFolder, textFileName2))
+                                                                    if (!await testFilesFolder.FileExists(textFileName2))
                                                                     {
                                                                         results += test + ": OK\n";
                                                                         //TODO: Add test to try to delete a folder that still contains files.  Need to see what happens with UWP!
@@ -141,14 +141,14 @@ namespace SandboxedStorageSample
                                                                         await testFilesFolder.DeleteAsync();
                                                                         results += test + ": OK\n";
                                                                         test += "!await StorageFolderExtensions.FolderExists(e.StorageFolder, testFilesFolder.Name)";
-                                                                        if (!await StorageFolderExtensions.FolderExists(e.StorageFolder, testFilesFolder.Name))
+                                                                        if (!await e.StorageFolder.FolderExists(testFilesFolder.Name))
                                                                         {
                                                                             results += test + ": OK\n";
                                                                             test = "textFile.DeleteAsync()";
                                                                             await textFile.DeleteAsync();
                                                                             results += test + ": OK\n";
                                                                             test = "!await StorageFolderExtensions.FileExists(e.StorageFolder, textFileName2)";
-                                                                            if (!await StorageFolderExtensions.FileExists(e.StorageFolder, textFileName2))
+                                                                            if (!await e.StorageFolder.FileExists(textFileName2))
                                                                             {
                                                                                 results += test + ": OK\n";
                                                                                 await DisplayAlert("Success", results, "OK");
