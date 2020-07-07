@@ -17,6 +17,7 @@ namespace P42.SandboxedStorage.Native
                 CanChooseFiles = true,
                 FloatingPanel = true,
                 AllowsMultipleSelection = false,
+                ResolvesAliases = true,
             };
 
             panel.RunModal(fileTypes?.ToArray() ?? new string[] { UTType.Content, UTType.Item, "public.data" });
@@ -28,27 +29,35 @@ namespace P42.SandboxedStorage.Native
             return Task.FromResult<IStorageFile>(new StorageFile(panel.Url, true));
         }
 
-        internal static Task<IStorageFile> PickSingleFileAsync(IStorageFile storageFile, IList<string> fileTypes = null)
+        internal static Task<IStorageFile> PickSingleFileAsync(StorageFile storageFile, string message = null)
         {
+            /*
             var folderTask = storageFile.GetParentAsync();
             folderTask.Wait();
-            var folder = folderTask.Result;
+            var folder = folderTask.Result as StorageFolder;
+            */
+            var folderUrl = storageFile.Url.RemoveLastPathComponent();
 
-            return PickSingleFileAsync(folder.Path, storageFile.Name, fileTypes);
-        }
-
-        public static Task<IStorageFile> PickSingleFileAsync(string directory, string fileName, IList<string> fileTypes = null)
-        {
             var panel = new NSOpenPanel
+            //var paen = new NSSavePanel
             {
+                CanCreateDirectories = true,
                 CanChooseDirectories = false,
                 CanChooseFiles = true,
                 FloatingPanel = true,
                 AllowsMultipleSelection = false,
-
+                ResolvesAliases = true,
+                DirectoryUrl = folderUrl,
+                Prompt = "THIS IS THE PROMPT!",
+                Title = "TITLE!",
             };
 
-            panel.RunModal(directory, fileName, fileTypes?.ToArray() ?? new string[] { UTType.Content, UTType.Item, "public.data" });
+            if (!string.IsNullOrWhiteSpace(message))
+                panel.Message = message;
+
+            string utType = storageFile.FileType; // UTType.CreatePreferredIdentifier(UTType.TagClassMIMEType, storageFile.ContentType, null);
+
+            panel.RunModal(folderUrl.Path, storageFile.Name,  new string[] { utType });
 
             if (panel.Url is null)
                 return Task.FromResult<IStorageFile>(null);

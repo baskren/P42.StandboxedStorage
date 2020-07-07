@@ -18,18 +18,18 @@ namespace P42.SandboxedStorage.Native
         /// If your path uses slashes, make sure you use backslashes(\).
         /// Forward slashes(/) are not accepted by this method.</param>
         /// <returns>When this method completes, it returns the file as a StorageFile.</returns>
-        public async static Task<IStorageFile> GetFileFromPathAsync(string path)
+        public static Task<IStorageFile> GetFileFromPathAsync(string path)
         {
             if (string.IsNullOrEmpty(path))
                 throw new ArgumentNullException("path");
 
-            await Task.Delay(5).ConfigureAwait(false);
-
-            return await Task.Run<IStorageFile>(() =>
+            bool isDirectory = false;
+            if (NSFileManager.DefaultManager.FileExists(path, ref isDirectory))
             {
-                var url = NSUrl.CreateFileUrl(path, false, null);
-                return new StorageFile(url);
-            });
+                if (!isDirectory)
+                    return Task.FromResult<IStorageFile>(new StorageFile(path));
+            }
+            return null;
         }
 
         #region Properties
@@ -67,7 +67,7 @@ namespace P42.SandboxedStorage.Native
         public StorageFile(NSUrl url, bool makeBookmark = false) : base(url, makeBookmark) { }
         #endregion
 
-
+        /*
         #region Private Methods
         internal override async Task<bool> RequestAccess(string message)
         {
@@ -83,6 +83,7 @@ namespace P42.SandboxedStorage.Native
             return false;
         }
         #endregion
+        */
 
 
         #region IStorageFile
@@ -172,8 +173,9 @@ namespace P42.SandboxedStorage.Native
                 return (null, error);
             }) is StorageFile result)
             {
-                Url = result.Url;
-                Bookmark = Url.GetOrCreateBookmark();
+                var bm = result.Url.GetOrCreateBookmark();
+                Url = bm.NewUrl ?? Url;
+                Bookmark = bm.Bookmark ?? Bookmark;
             }
         }
 
@@ -324,8 +326,8 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            //if (!await StartReadAccess())
-            if (!await StartAccess())
+            var access = await StartAccess();
+            if (!access)
                 return null;
 
             var data = NSData.FromUrl(Url, NSDataReadingOptions.Mapped, out NSError error);
@@ -356,13 +358,29 @@ namespace P42.SandboxedStorage.Native
         public async Task<string> ReadAllTextAsync(System.Threading.CancellationToken cancellationToken = default)
         {
             await Task.Delay(5).ConfigureAwait(false);
-
+            /*
             if (await ReadAllBytesAsync(cancellationToken) is byte[] bytes && bytes.Length > 0)
             {
                 var text = System.Text.Encoding.UTF8.GetString(bytes);
                 return text;
             }
             return null;
+            */
+            var access = await StartAccess();
+            if (!access)
+                return null;
+
+            var data = NSData.FromUrl(Url, NSDataReadingOptions.Mapped, out NSError error);
+            var str = NSString.FromData(data, NSStringEncoding.UTF8);
+            StopAccess();
+
+            if (error != null)
+            {
+                if (AccessDenialResponse != AccessDenialResponse.Silent)
+                    throw new AccessViolationException(error.LocalizedDescription);
+                return null;
+            }
+            return str.ToString();
         }
         #endregion
 

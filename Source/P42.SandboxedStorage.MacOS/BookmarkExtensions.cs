@@ -7,7 +7,7 @@ namespace P42.SandboxedStorage.Native
     public static class BookmarkExtensions
     {
 
-        public static NSData GetBookmark(this NSUrl url)
+        public static (NSUrl NewUrl, NSData Bookmark) GetBookmark(this NSUrl url)
         {
             var bookmarksObj = NSUserDefaults.StandardUserDefaults.ValueForKey(new NSString("Bookmarks")) as NSArray;
             var nsBookmarks = bookmarksObj?.MutableCopy() as NSMutableArray ?? new NSMutableArray();
@@ -29,10 +29,12 @@ namespace P42.SandboxedStorage.Native
                         if (isStale)
                         {
                             if (url.CreateBookmark() is NSData newBookmark)
-                                return newBookmark;
-                            return null;
+                            {
+                                return (bookmarkUrl, newBookmark);
+                            }
+                            return (null,null);
                         }
-                        return bookmark;
+                        return (bookmarkUrl, bookmark);
                     }
                 }
                 else
@@ -43,7 +45,7 @@ namespace P42.SandboxedStorage.Native
                     NSUserDefaults.StandardUserDefaults.SetValueForKey(nsBookmarks, new NSString("Bookmarks"));
                 }
             }
-            return null;
+            return (null, null);
         }
 
         public static NSData CreateBookmark(this NSUrl url)
@@ -62,11 +64,12 @@ namespace P42.SandboxedStorage.Native
             return newBookmark;
         }
 
-        public static NSData GetOrCreateBookmark(this NSUrl url)
+        public static (NSUrl NewUrl,NSData Bookmark) GetOrCreateBookmark(this NSUrl url)
         {
-            if (url.GetBookmark() is NSData existingBookmark)
+            var existingBookmark = url.GetBookmark();
+            if (existingBookmark.Bookmark != null)
                 return existingBookmark;
-            return url.CreateBookmark();
+            return (url,url.CreateBookmark());
         }
 
     }

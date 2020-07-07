@@ -47,10 +47,15 @@ namespace P42.SandboxedStorage.Native
         public static Task<IStorageFolder> GetFolderFromPathAsync(string path)
         {
             if (string.IsNullOrEmpty(path))
-            {
                 throw new ArgumentNullException("path");
+
+            bool isDirectory = false;
+            if (NSFileManager.DefaultManager.FileExists(path, ref isDirectory))
+            {
+                if (isDirectory)
+                    return Task.FromResult<IStorageFolder>(new StorageFolder(path));
             }
-            return Task.FromResult<IStorageFolder>(new StorageFolder(path));
+            return null;
         }
 
 
@@ -68,8 +73,9 @@ namespace P42.SandboxedStorage.Native
             {
                 if (await FolderPicker.PickSingleFolderAsync(this) is IStorageFolder iStorageFolder && iStorageFolder is StorageFolder storageFolder)
                 {
-                    Url = storageFolder.Url;
-                    Bookmark = BookmarkExtensions.GetOrCreateBookmark(Url);
+                    var bm = storageFolder.Url.GetOrCreateBookmark();
+                    Url = bm.NewUrl ?? Url;
+                    Bookmark = bm.Bookmark ?? Bookmark;
                     return Bookmark != null;
                 }
             }
@@ -256,7 +262,7 @@ namespace P42.SandboxedStorage.Native
         /// <returns></returns>
         public async Task<IReadOnlyList<IStorageFile>> GetFilesAsync(string pattern = null)
         {
-            if (await GetItemsAsync(pattern, true, false) is IReadOnlyList<IStorageItem> items)
+            if (await GetItemsAsync(pattern, false, true) is IReadOnlyList<IStorageItem> items)
             {
                 var result = new List<IStorageFile>();
                 foreach (var item in items)
@@ -342,10 +348,10 @@ namespace P42.SandboxedStorage.Native
 
             foreach (var itemUrl in itemUrls ?? new NSUrl[] { })
             {
-                if (this.RemoveCurrentFolderFromPath(itemUrl.Path) is string folderName)
+                if (this.RemoveCurrentFolderFromPath(itemUrl.Path) is string itemName)
                 //var folderName = folderPath.AbsoluteString;
                 {
-                    if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(folderName, regex))
+                    if (string.IsNullOrWhiteSpace(regex) || Regex.IsMatch(itemName, regex))
                     {
                         
                         if(itemUrl.TryGetResource(NSUrl.IsDirectoryKey, out NSObject value) && value is NSNumber isDirectory)

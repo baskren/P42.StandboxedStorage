@@ -122,7 +122,12 @@ namespace P42.SandboxedStorage.Native
         {
             get
             {
-                _bookmark = _bookmark ?? Url.GetBookmark();
+                if (_bookmark is null)
+                {
+                    var bm = Url.GetOrCreateBookmark();
+                    Url = bm.NewUrl ?? Url;
+                    _bookmark = bm.Bookmark;
+                }
                 return _bookmark;
             }
             set => _bookmark = value;
@@ -185,7 +190,10 @@ namespace P42.SandboxedStorage.Native
                     ThrowAccessException();
                 }
                 else if (AccessDenialResponse == AccessDenialResponse.RequestAccess)
-                    return !await RequestAccess(Path);
+                {
+                    var access = await RequestAccess(Path);
+                    return access;
+                }
                 return false;
             }
             Url.StartAccessingSecurityScopedResource();
@@ -207,15 +215,47 @@ namespace P42.SandboxedStorage.Native
         {
             if (AccessDenialResponse == AccessDenialResponse.RequestAccess)
             {
-                Xamarin.Forms.Page currentPage = null;
+                TaskCompletionSource<bool> taskCompletionSource = new TaskCompletionSource<bool>();
+
+                Xamarin.Forms.Page currentPage = Xamarin.Forms.Application.Current.MainPage;
                 if (Xamarin.Forms.Application.Current.MainPage.Navigation.NavigationStack.LastOrDefault() is Xamarin.Forms.Page navPage)
                     currentPage = navPage;
                 if (currentPage?.Navigation.ModalStack.LastOrDefault() is Xamarin.Forms.Page lastModalPage)
                     currentPage = lastModalPage;
-                if (await currentPage.DisplayActionSheet(message + " Do you want to navigate to this file in order to grant access?", "cancel", "ok") is string button)
+
+                Xamarin.Forms.Device.BeginInvokeOnMainThread(async () =>
                 {
-                    return button == "ok";
-                }
+                    //if (await currentPage.DisplayActionSheet(message + " Do you want to navigate to this " + (this is StorageFile ? "file" : "folder") + " in order to grant access?", "cancel", "ok") is string button)
+                    {
+                        //if (button == "ok")
+                        {
+                            if (this is StorageFile file)
+                            {
+                                if (await FilePicker.PickSingleFileAsync(file, "Grand access to " + Name) is StorageFile newFile)
+                                {
+                                    var bm = newFile.Url.GetBookmark();
+                                    Url = bm.NewUrl ?? Url;
+                                    Bookmark = bm.Bookmark ?? Bookmark;
+                                    taskCompletionSource.SetResult(true);
+                                    return;
+                                }
+                            }
+                            else if (this is StorageFolder folder)
+                            {
+                                if (await FolderPicker.PickSingleFolderAsync(folder, "Grant access to " + Name) is StorageFolder newFolder)
+                                {
+                                    var bm = newFolder.Url.GetBookmark();
+                                    Url = bm.NewUrl ?? Url;
+                                    Bookmark = bm.Bookmark ?? Bookmark;
+                                    taskCompletionSource.SetResult(true);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                    taskCompletionSource.SetResult(false);
+                });
+                return await taskCompletionSource.Task;
             }
             return false;
         }

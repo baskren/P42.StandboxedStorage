@@ -70,6 +70,11 @@ namespace SandboxedStorageSample
             {
                 await DisplayFolderContents(e.StorageFolder);
 
+                if (await e.StorageFolder.GetFilesAsync("*.txt") is IReadOnlyList<IStorageFile> files && files.Count > 0)
+                    await DisplaySomeTextFileContents(files[0]);
+                else
+                    await DisplayAlert(null, "No text file found in folder [" + e.StorageFolder.Path + "]", "ok");
+
                 var results = "";
                 var test = "e.StorageFolder.GetOrCreateFolderAsync(\"testFiles\")";
                 if (await e.StorageFolder.GetOrCreateFolderAsync("testFiles") is IStorageFolder testFilesFolder)
@@ -241,7 +246,7 @@ CONTENT:
             if (textFile is null)
                 return;
             ShowSpinner();
-            textFile.AccessDenialResponse = AccessDenialResponse.Silent;
+            textFile.AccessDenialResponse = AccessDenialResponse.RequestAccess;
             if (await textFile.ReadAllTextAsync() is string text)
             {
                 var result = $@"Path {textFile.Path}
