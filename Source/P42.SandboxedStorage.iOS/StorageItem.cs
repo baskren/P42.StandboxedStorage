@@ -137,11 +137,14 @@ namespace P42.SandboxedStorage.Native
         {
             get
             {
-                Url.StartAccessingSecurityScopedResource();
-                var attributes = NSFileManager.DefaultManager.GetAttributes(Path, out NSError error);
-                Url.StopAccessingSecurityScopedResource();
-                if (error == null)
-                    return attributes;
+                if (GetBookmarkedItem() is StorageItem item)
+                {
+                    item.Url.StartAccessingSecurityScopedResource();
+                    var attributes = NSFileManager.DefaultManager.GetAttributes(Path, out NSError error);
+                    item.Url.StopAccessingSecurityScopedResource();
+                    if (error == null)
+                        return attributes;
+                }
                 return null;
             }
         }
@@ -171,17 +174,9 @@ namespace P42.SandboxedStorage.Native
 
 
         #region Private Methods
-        /*
-        internal bool CanAccess()
-        {
-            //if (Bookmark is null)
-            //    Bookmark = Url.GetBookmark();
-            return Bookmark != null;
-        }
-        */
         protected bool AfterActionInvalid(NSError error = null)
         {
-            Url.StopAccessingSecurityScopedResource();
+            StopAccess();
             if (error == null)
                 return false;
             if (AccessDenialResponse == AccessDenialResponse.Exception)
@@ -191,7 +186,7 @@ namespace P42.SandboxedStorage.Native
 
         protected bool AfterActionInvalid(Exception e)
         {
-            Url.StopAccessingSecurityScopedResource();
+            StopAccess();
             if (e == null)
                 return false;
             if (AccessDenialResponse == AccessDenialResponse.Exception)
@@ -199,51 +194,52 @@ namespace P42.SandboxedStorage.Native
             return true;
         }
 
-        
+
+        StorageItem GetBookmarkedItem()
+        {
+            var item = this;
+            while (item != null && item.Bookmark is null)
+            {
+                item = item.GetParent();
+            }
+            return item;
+        }
+
         internal async Task<bool> StartAccess(Action action = null)
         {
-            NSUrl url = null;
-            if (Bookmark is null)
+            if (GetBookmarkedItem() is StorageItem item)
             {
-                //url = BookmarkExtensions.LastUrl;
-
-                var parent = await GetParentAsync() as StorageItem;
-                if (parent.Bookmark != null)
-                    url = parent.Url;
-
-                System.Diagnostics.Debug.WriteLine("StorageItem");
-
-            }
-            else
-                url = Url;
-
-            //if (Bookmark != null)
-            {
-                var canAccess = url.StartAccessingSecurityScopedResource();
+                var canAccess = item.Url.StartAccessingSecurityScopedResource();
 
                 var accessDenialResponse = AccessDenialResponse.Value();
 
                 if (!canAccess && AccessDenialResponse == AccessDenialResponse.RequestAccess)
                     canAccess = await RequestAccess(Path);
+
                 if (!canAccess)
                 {
                     if (action != null)
                         action.Invoke();
-                    url.StopAccessingSecurityScopedResource();
                     if (accessDenialResponse == AccessDenialResponse.Exception)
                         ThrowAccessException();
+                    item.Url.StopAccessingSecurityScopedResource();
                     return false;
                 }
+                return true;
             }
-            return true;
+            return false;
         }
 
-    
+        internal void StopAccess()
+        {
+            if (GetBookmarkedItem() is StorageItem item)
+                item.Url.StopAccessingSecurityScopedResource();
+        }
 
 
         internal void ThrowAccessException(string message = null)
         {
-            Url.StopAccessingSecurityScopedResource();
+            StopAccess();
             throw new UnauthorizedAccessException(message ?? "Access denied to [" + Path + "].");
         }
 
@@ -330,6 +326,19 @@ namespace P42.SandboxedStorage.Native
         public bool IsEqual(SandboxedStorage.IStorageItem item)
             => Path == item.Path;
 
+
+        internal StorageFolder GetParent()
+        {
+            var parentUrl = Url.RemoveLastPathComponent();
+            System.Diagnostics.Debug.WriteLine("URL: " + Url.AbsoluteString);
+
+            if (Url.AbsoluteString == "file:///../")
+                return null;
+
+            return new StorageFolder(parentUrl);
+
+        }
+
         /// <summary>
         /// Gets the parent folder of the current file.
         /// </summary>
@@ -338,11 +347,7 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            return await Task.Run<IStorageFolder>(() =>
-            {
-                var parentUrl = Url.RemoveLastPathComponent();
-                return new StorageFolder(parentUrl);
-            });
+            return GetParent();
         }
 
         /// <summary>
@@ -362,7 +367,11 @@ namespace P42.SandboxedStorage.Native
             if (option == StorageDeleteOption.Default)
             {
                 if (NSFileManager.DefaultManager.TrashItem(Url, out NSUrl resultingUrl, out NSError error))
-                    Url = resultingUrl;
+                {
+                    var bm = resultingUrl.GetOrCreateBookmark();
+                    Url = bm.NewUrl ?? Url;
+                    Bookmark = bm.Bookmark ?? Bookmark;
+                }
                 else
                 {
                     Console.WriteLine("Cannot delete file [" + Url.Path + "].");
@@ -374,7 +383,7 @@ namespace P42.SandboxedStorage.Native
                 Console.WriteLine("Cannot delete file [" + Url.Path + "].");
                 Console.WriteLine("ERROR: " + error);
             }
-            Url.StopAccessingSecurityScopedResource();
+            StopAccess();
         }
 
         #endregion

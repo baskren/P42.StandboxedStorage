@@ -171,7 +171,7 @@ namespace P42.SandboxedStorage.Native
                 string filepath = System.IO.Path.Combine(Path, desiredName);
                 File.Create(filepath).Close();
                 //var result = NSFileManager.DefaultManager.CreateFile(filepath, null, new NSDictionary {  });
-                Url.StopAccessingSecurityScopedResource();
+                StopAccess();
                 /*
                 if (!result)
                 {
@@ -180,7 +180,7 @@ namespace P42.SandboxedStorage.Native
                     return null;
                 }
                 */
-                return new StorageFile(filepath, true);
+                return new StorageFile(filepath);
             });
         }
 
@@ -238,8 +238,8 @@ namespace P42.SandboxedStorage.Native
             Directory.CreateDirectory(newPath);
             // the above does work but the below does not?!?!
             //NSFileManager.DefaultManager.CreateDirectory(desiredName, false, new NSDictionary { }, out NSError error);
-            Url.StopAccessingSecurityScopedResource();
-            return new StorageFolder(newPath, true);
+            StopAccess();
+            return new StorageFolder(newPath);
         }
         #endregion
 

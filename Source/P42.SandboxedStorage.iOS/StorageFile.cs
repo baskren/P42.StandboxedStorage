@@ -120,7 +120,7 @@ namespace P42.SandboxedStorage.Native
             {
                 if (action != null)
                     action.Invoke();
-                Url.StopAccessingSecurityScopedResource();
+                StopAccess();
                 if (accessDenialResponse == AccessDenialResponse.Exception)
                     ThrowAccessException();
                 return false;
@@ -142,7 +142,7 @@ namespace P42.SandboxedStorage.Native
             {
                 if (action != null)
                     action.Invoke();
-                Url.StopAccessingSecurityScopedResource();
+                StopAccess();
                 if (accessDenialResponse == AccessDenialResponse.Exception)
                     ThrowAccessException();
                 return false;
@@ -208,11 +208,11 @@ namespace P42.SandboxedStorage.Native
 
             if (destinationFolder.FileExists(desiredNewName))
             {
-                ((StorageFolder)destinationFolder).Url.StopAccessingSecurityScopedResource();
+                ((StorageFolder)destinationFolder).StopAccess();
                 throw new AccessViolationException("File [" + desiredNewName + "] aready exists in folder [" + destinationFolder.Path + "]");
             }
 
-            if (!await StartAccess(()=> ((StorageFolder)destinationFolder).Url.StopAccessingSecurityScopedResource()))
+            if (!await StartAccess(()=> ((StorageFolder)destinationFolder).StopAccess()))
                 return null;
 
 
@@ -221,8 +221,8 @@ namespace P42.SandboxedStorage.Native
 
             var result = func.Invoke(destinationUrl);
 
-            Url.StopAccessingSecurityScopedResource();
-            ((StorageFolder)destinationFolder).Url.StopAccessingSecurityScopedResource();
+            StopAccess();
+            ((StorageFolder)destinationFolder).StopAccess();
 
             if (result.error != null)
             {
@@ -248,30 +248,31 @@ namespace P42.SandboxedStorage.Native
 
             await Task.Delay(5).ConfigureAwait(false);
 
-            var folder = await GetParentAsync();
-
-            switch (option)
+            if (GetParent() is StorageFolder folder)
             {
-                case NameCollisionOption.GenerateUniqueName:
-                    int i = 0;
-                    string uniqueName = desiredName;
-                    while (await folder.GetFileAsync(uniqueName) is IStorageFile)
-                    {
-                        uniqueName = string.Format(desiredName.Substring(0, desiredName.LastIndexOf('.')) + " ({0})" + desiredName.Substring(desiredName.LastIndexOf('.')), ++i);
-                    }
-                    await MoveAsync(folder, uniqueName);
-                    break;
+                switch (option)
+                {
+                    case NameCollisionOption.GenerateUniqueName:
+                        int i = 0;
+                        string uniqueName = desiredName;
+                        while (await folder.GetFileAsync(uniqueName) is IStorageFile)
+                        {
+                            uniqueName = string.Format(desiredName.Substring(0, desiredName.LastIndexOf('.')) + " ({0})" + desiredName.Substring(desiredName.LastIndexOf('.')), ++i);
+                        }
+                        await MoveAsync(folder, uniqueName);
+                        break;
 
-                case NameCollisionOption.ReplaceExisting:
-                    if (await folder.GetFileAsync(desiredName) is IStorageFile existingFile)
-                        await existingFile.DeleteAsync();
-                    await MoveAsync(folder, desiredName);
-                    break;
-
-                default:
-                    if (!(await folder.GetFileAsync(desiredName) is IStorageFile))
+                    case NameCollisionOption.ReplaceExisting:
+                        if (await folder.GetFileAsync(desiredName) is IStorageFile existingFile)
+                            await existingFile.DeleteAsync();
                         await MoveAsync(folder, desiredName);
-                    break;
+                        break;
+
+                    default:
+                        if (!(await folder.GetFileAsync(desiredName) is IStorageFile))
+                            await MoveAsync(folder, desiredName);
+                        break;
+                }
             }
         }
         #endregion
@@ -333,7 +334,7 @@ namespace P42.SandboxedStorage.Native
                 try
                 {
                     await File.AppendAllTextAsync(Path, contents, cancellationToken);
-                    Url.StopAccessingSecurityScopedResource();
+                    StopAccess();
                 }
                 catch (Exception e)
                 {
@@ -392,7 +393,7 @@ namespace P42.SandboxedStorage.Native
                 try
                 {
                     var str = await File.ReadAllTextAsync(Path, cancellationToken);
-                    Url.StopAccessingSecurityScopedResource();
+                    StopAccess();
                     return str;
                 }
                 catch (Exception e)
@@ -419,7 +420,7 @@ namespace P42.SandboxedStorage.Native
                 {
                     var data = NSData.FromArray(bytes);
                     data.Save(Url, true);
-                    Url.StopAccessingSecurityScopedResource();
+                    StopAccess();
                 }
                 catch (Exception e)
                 {
@@ -450,7 +451,7 @@ namespace P42.SandboxedStorage.Native
                 try
                 {
                     await File.WriteAllTextAsync(Path, content, cancellationToken);
-                    Url.StopAccessingSecurityScopedResource();
+                    StopAccess();
                 }
                 catch (Exception e)
                 {
