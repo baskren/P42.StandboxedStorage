@@ -89,12 +89,10 @@ namespace P42.SandboxedStorage.Native
         #region IStorageFile
 
         #region Check Access
+        /*
         public async Task<bool> CanRead()
         {
-            if (!await StartAccess(accessDenialResponse: AccessDenialResponse.Silent))
-                return false;
             var result = NSFileManager.DefaultManager.IsReadableFile(Path);
-            StopAccess();
             return result;
         }
 
@@ -103,35 +101,53 @@ namespace P42.SandboxedStorage.Native
             var result = NSFileManager.DefaultManager.IsWritableFile(Path);
             return result;
         }
+        */
+
+        bool CanRead => NSFileManager.DefaultManager.IsReadableFile(Path);
+
+        bool CanWrite => NSFileManager.DefaultManager.IsWritableFile(Path);
 
         internal async Task<bool> StartReadAccess(Action action = null)
         {
-            var canAccess = CanAccess();
-            var canRead = await CanRead();
-            if (!canAccess || !canRead)
-            {
-                if (AccessDenialResponse == AccessDenialResponse.Exception || AccessDenialResponse == AccessDenialResponse.Default)
-                {
-                    if (action != null)
-                        action.Invoke();
-                    ThrowAccessException();
-                }
-                else
-                    return false;
-            }
-            Url.StartAccessingSecurityScopedResource();
-            return true;
-        }
+            if (!await StartAccess())
+                return false;
 
-        internal bool StartWriteAccess(Action action = null)
-        {
-            if (!CanAccess() || !CanWrite())
+            var accessDenialResponse = AccessDenialResponse.Value();
+
+            if (!CanRead && accessDenialResponse == AccessDenialResponse.RequestAccess)
+                await RequestAccess(Path);
+            if (!CanRead)
             {
                 if (action != null)
                     action.Invoke();
-                ThrowAccessException();
+                Url.StopAccessingSecurityScopedResource();
+                if (accessDenialResponse == AccessDenialResponse.Exception)
+                    ThrowAccessException();
+                return false;
             }
-            Url.StartAccessingSecurityScopedResource();
+
+            return true;
+        }
+
+        internal async Task<bool> StartWriteAccess(Action action = null)
+        {
+            if (!await StartAccess())
+                return false;
+
+            var accessDenialResponse = AccessDenialResponse.Value();
+
+            if (!CanWrite && accessDenialResponse == AccessDenialResponse.RequestAccess)
+                await RequestAccess(Path);
+            if (!CanWrite)
+            {
+                if (action != null)
+                    action.Invoke();
+                Url.StopAccessingSecurityScopedResource();
+                if (accessDenialResponse == AccessDenialResponse.Exception)
+                    ThrowAccessException();
+                return false;
+            }
+
             return true;
         }
         #endregion
@@ -192,20 +208,21 @@ namespace P42.SandboxedStorage.Native
 
             if (destinationFolder.FileExists(desiredNewName))
             {
-                ((StorageFolder)destinationFolder).StopAccess();
-                    throw new AccessViolationException("File [" + desiredNewName + "] aready exists in folder [" + destinationFolder.Path + "]");
+                ((StorageFolder)destinationFolder).Url.StopAccessingSecurityScopedResource();
+                throw new AccessViolationException("File [" + desiredNewName + "] aready exists in folder [" + destinationFolder.Path + "]");
             }
 
-            if (!await StartAccess(() => ((StorageFolder)destinationFolder).StopAccess()))
+            if (!await StartAccess(()=> ((StorageFolder)destinationFolder).Url.StopAccessingSecurityScopedResource()))
                 return null;
+
 
             // Make the copy
             var destinationUrl = ((StorageFolder)destinationFolder).Url.Append(desiredNewName, false);
 
             var result = func.Invoke(destinationUrl);
 
-            StopAccess();
-            ((StorageFolder)destinationFolder).StopAccess();
+            Url.StopAccessingSecurityScopedResource();
+            ((StorageFolder)destinationFolder).Url.StopAccessingSecurityScopedResource();
 
             if (result.error != null)
             {
@@ -303,20 +320,26 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-
-            StartWriteAccess();
             var appendText = string.Join("\n", lines);
             await AppendAllTextAsync(appendText);
-            StopAccess();
         }
 
         public async Task AppendAllTextAsync(string contents, System.Threading.CancellationToken cancellationToken = default)
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            StartWriteAccess();
-            await File.AppendAllTextAsync(Path, contents, cancellationToken);
-            StopAccess();
+            if (await StartWriteAccess())
+            {
+                try
+                {
+                    await File.AppendAllTextAsync(Path, contents, cancellationToken);
+                    Url.StopAccessingSecurityScopedResource();
+                }
+                catch (Exception e)
+                {
+                    AfterActionInvalid(e);
+                }
+            }
         }
         #endregion
 
@@ -326,21 +349,16 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            var access = await StartAccess();
-            if (!access)
-                return null;
-
-            var data = NSData.FromUrl(Url, NSDataReadingOptions.Mapped, out NSError error);
-            StopAccess();
-
-            if (error != null)
+            if (await StartReadAccess())
             {
-                if (AccessDenialResponse != AccessDenialResponse.Silent)
-                    throw new AccessViolationException(error.LocalizedDescription);
-                return null;
+                var data = NSData.FromUrl(Url, NSDataReadingOptions.Mapped, out NSError error);
+                if (AfterActionInvalid(error))
+                    return null;
+
+                var bytes = data?.ToArray();
+                return bytes;
             }
-            var bytes = data?.ToArray();
-            return bytes;
+            return null;
         }
 
         public async Task<string[]> ReadAllLinesAsync(System.Threading.CancellationToken cancellationToken = default)
@@ -358,29 +376,31 @@ namespace P42.SandboxedStorage.Native
         public async Task<string> ReadAllTextAsync(System.Threading.CancellationToken cancellationToken = default)
         {
             await Task.Delay(5).ConfigureAwait(false);
-            /*
-            if (await ReadAllBytesAsync(cancellationToken) is byte[] bytes && bytes.Length > 0)
+
+            if (await StartReadAccess())
             {
-                var text = System.Text.Encoding.UTF8.GetString(bytes);
-                return text;
+                /*
+                //var str = await File.ReadAllTextAsync(Path, cancellationToken);
+                var data = NSData.FromUrl(Url, NSDataReadingOptions.Mapped, out NSError error);
+                if (AfterActionInvalid(error))
+                    return null;
+
+                var str = NSString.FromData(data, NSStringEncoding.UTF8);
+                return str.ToString();
+                */
+
+                try
+                {
+                    var str = await File.ReadAllTextAsync(Path, cancellationToken);
+                    Url.StopAccessingSecurityScopedResource();
+                    return str;
+                }
+                catch (Exception e)
+                {
+                    AfterActionInvalid(e);
+                }
             }
             return null;
-            */
-            var access = await StartAccess();
-            if (!access)
-                return null;
-
-            var data = NSData.FromUrl(Url, NSDataReadingOptions.Mapped, out NSError error);
-            var str = NSString.FromData(data, NSStringEncoding.UTF8);
-            StopAccess();
-
-            if (error != null)
-            {
-                if (AccessDenialResponse != AccessDenialResponse.Silent)
-                    throw new AccessViolationException(error.LocalizedDescription);
-                return null;
-            }
-            return str.ToString();
         }
         #endregion
 
@@ -393,11 +413,19 @@ namespace P42.SandboxedStorage.Native
 
             await Task.Delay(5).ConfigureAwait(false);
 
-            StartWriteAccess();
-            var data = NSData.FromArray(bytes);
-            data.Save(Url, true);
-            StopAccess();
-            
+            if (await StartWriteAccess())
+            {
+                try
+                {
+                    var data = NSData.FromArray(bytes);
+                    data.Save(Url, true);
+                    Url.StopAccessingSecurityScopedResource();
+                }
+                catch (Exception e)
+                {
+                    AfterActionInvalid(e);
+                }
+            }
         }
 
         public async Task WriteAllLinesAsync(IEnumerable<string> lines, System.Threading.CancellationToken cancellationToken = default)
@@ -415,8 +443,20 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(content);
-            await WriteAllBytesAsync(bytes, cancellationToken);
+            //var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+            //await WriteAllBytesAsync(bytes, cancellationToken);
+            if (await StartWriteAccess())
+            {
+                try
+                {
+                    await File.WriteAllTextAsync(Path, content, cancellationToken);
+                    Url.StopAccessingSecurityScopedResource();
+                }
+                catch (Exception e)
+                {
+                    AfterActionInvalid(e);
+                }
+            }
         }
         #endregion
 

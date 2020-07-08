@@ -167,10 +167,11 @@ namespace P42.SandboxedStorage.Native
                 if (!await StartAccess())
                     return null;
 
+
                 string filepath = System.IO.Path.Combine(Path, desiredName);
                 File.Create(filepath).Close();
                 //var result = NSFileManager.DefaultManager.CreateFile(filepath, null, new NSDictionary {  });
-                StopAccess();
+                Url.StopAccessingSecurityScopedResource();
                 /*
                 if (!result)
                 {
@@ -237,7 +238,7 @@ namespace P42.SandboxedStorage.Native
             Directory.CreateDirectory(newPath);
             // the above does work but the below does not?!?!
             //NSFileManager.DefaultManager.CreateDirectory(desiredName, false, new NSDictionary { }, out NSError error);
-            StopAccess();
+            Url.StopAccessingSecurityScopedResource();
             return new StorageFolder(newPath, true);
         }
         #endregion
@@ -336,14 +337,8 @@ namespace P42.SandboxedStorage.Native
                 return null;
 
             var itemUrls = NSFileManager.DefaultManager.GetDirectoryContent(Url, null, NSDirectoryEnumerationOptions.SkipsSubdirectoryDescendants | NSDirectoryEnumerationOptions.ProducesRelativePathUrls, out NSError error);
-            StopAccess();
-            
-            if (error != null)
-            {
-                if (AccessDenialResponse != AccessDenialResponse.Silent)
-                    throw new AccessViolationException(error.LocalizedDescription);
+            if (AfterActionInvalid(error))
                 return null;
-            }
             
 
             foreach (var itemUrl in itemUrls ?? new NSUrl[] { })

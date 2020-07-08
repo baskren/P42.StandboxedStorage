@@ -124,7 +124,7 @@ namespace P42.SandboxedStorage.Native
             {
                 if (_bookmark is null)
                 {
-                    var bm = Url.GetOrCreateBookmark();
+                    var bm = Url.GetBookmark();
                     Url = bm.NewUrl ?? Url;
                     _bookmark = bm.Bookmark;
                 }
@@ -171,39 +171,75 @@ namespace P42.SandboxedStorage.Native
 
 
         #region Private Methods
+        /*
         internal bool CanAccess()
         {
             //if (Bookmark is null)
             //    Bookmark = Url.GetBookmark();
             return Bookmark != null;
         }
-
-        internal async Task<bool> StartAccess(Action action = null, AccessDenialResponse accessDenialResponse = AccessDenialResponse.Default)
+        */
+        protected bool AfterActionInvalid(NSError error = null)
         {
-            var canAccess = CanAccess();
-            if (!canAccess)
-            {
-                if (AccessDenialResponse == AccessDenialResponse.Exception || AccessDenialResponse == AccessDenialResponse.Default)
-                {
-                    if (action != null)
-                        action.Invoke();
-                    ThrowAccessException();
-                }
-                else if (AccessDenialResponse == AccessDenialResponse.RequestAccess)
-                {
-                    var access = await RequestAccess(Path);
-                    return access;
-                }
+            Url.StopAccessingSecurityScopedResource();
+            if (error == null)
                 return false;
-            }
-            Url.StartAccessingSecurityScopedResource();
+            if (AccessDenialResponse == AccessDenialResponse.Exception)
+                ThrowAccessException();
             return true;
         }
 
-        internal void StopAccess()
+        protected bool AfterActionInvalid(Exception e)
         {
             Url.StopAccessingSecurityScopedResource();
+            if (e == null)
+                return false;
+            if (AccessDenialResponse == AccessDenialResponse.Exception)
+                throw e;
+            return true;
         }
+
+        
+        internal async Task<bool> StartAccess(Action action = null)
+        {
+            NSUrl url = null;
+            if (Bookmark is null)
+            {
+                //url = BookmarkExtensions.LastUrl;
+
+                var parent = await GetParentAsync() as StorageItem;
+                if (parent.Bookmark != null)
+                    url = parent.Url;
+
+                System.Diagnostics.Debug.WriteLine("StorageItem");
+
+            }
+            else
+                url = Url;
+
+            //if (Bookmark != null)
+            {
+                var canAccess = url.StartAccessingSecurityScopedResource();
+
+                var accessDenialResponse = AccessDenialResponse.Value();
+
+                if (!canAccess && AccessDenialResponse == AccessDenialResponse.RequestAccess)
+                    canAccess = await RequestAccess(Path);
+                if (!canAccess)
+                {
+                    if (action != null)
+                        action.Invoke();
+                    url.StopAccessingSecurityScopedResource();
+                    if (accessDenialResponse == AccessDenialResponse.Exception)
+                        ThrowAccessException();
+                    return false;
+                }
+            }
+            return true;
+        }
+
+    
+
 
         internal void ThrowAccessException(string message = null)
         {
@@ -233,9 +269,10 @@ namespace P42.SandboxedStorage.Native
                             {
                                 if (await FilePicker.PickSingleFileAsync(file, "Grand access to " + Name) is StorageFile newFile)
                                 {
-                                    var bm = newFile.Url.GetBookmark();
+                                    var bm = newFile.Url.GetOrCreateBookmark();
                                     Url = bm.NewUrl ?? Url;
                                     Bookmark = bm.Bookmark ?? Bookmark;
+                                    Url.StartAccessingSecurityScopedResource();
                                     taskCompletionSource.SetResult(true);
                                     return;
                                 }
@@ -244,9 +281,10 @@ namespace P42.SandboxedStorage.Native
                             {
                                 if (await FolderPicker.PickSingleFolderAsync(folder, "Grant access to " + Name) is StorageFolder newFolder)
                                 {
-                                    var bm = newFolder.Url.GetBookmark();
+                                    var bm = newFolder.Url.GetOrCreateBookmark();
                                     Url = bm.NewUrl ?? Url;
                                     Bookmark = bm.Bookmark ?? Bookmark;
+                                    Url.StartAccessingSecurityScopedResource();
                                     taskCompletionSource.SetResult(true);
                                     return;
                                 }
@@ -336,7 +374,7 @@ namespace P42.SandboxedStorage.Native
                 Console.WriteLine("Cannot delete file [" + Url.Path + "].");
                 Console.WriteLine("ERROR: " + error);
             }
-            StopAccess();
+            Url.StopAccessingSecurityScopedResource();
         }
 
         #endregion

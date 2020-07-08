@@ -61,6 +61,7 @@ namespace P42.SandboxedStorage
 
 
         #region Methods
+        /*
         /// <summary>
         /// Read access is permitted
         /// </summary>
@@ -72,6 +73,7 @@ namespace P42.SandboxedStorage
         /// </summary>
         /// <returns></returns>
         bool CanWrite();
+        */
 
         /// <summary>
         /// Replaces the specified file with a copy of the current file.

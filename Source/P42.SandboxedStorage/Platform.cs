@@ -13,6 +13,17 @@ namespace P42.SandboxedStorage
 {
     internal static class PlatformDelegate
     {
+        static AccessDenialResponse _defaultAccessDenialResponse = AccessDenialResponse.Exception;
+        public static AccessDenialResponse DefaultAccessDenialResponse
+        {
+            get => _defaultAccessDenialResponse;
+            set
+            {
+                if (value != _defaultAccessDenialResponse && value != AccessDenialResponse.GlobalDefault)
+                    _defaultAccessDenialResponse = value;
+            }
+        }
+
         public static Func<string, Task<IStorageFile>> GetFileFromPathAsync;
 
         public static Func<string, Task<IStorageFolder>> GetFolderFromPathAsync;
