@@ -85,31 +85,31 @@ namespace P42.SandboxedStorage.Native
         #region IStorageFolder
 
         #region Exists
-        public bool ItemExists(string itemName)
+        public Task<bool> ItemExists(string itemName)
         {
             var path = System.IO.Path.Combine(Path, itemName);
             var result = NSFileManager.DefaultManager.FileExists(path);
-            return result;
+            return Task.FromResult(result);
         }
 
-        public bool FileExists(string fileName)
+        public Task<bool> FileExists(string fileName)
         {
             var path = System.IO.Path.Combine(Path, fileName);
             bool isDirectory = false;
             var result = NSFileManager.DefaultManager.FileExists(path, ref isDirectory);
             if (isDirectory)
-                return false;
-            return result;
+                return Task.FromResult(false);
+            return Task.FromResult(result);
         }
 
-        public bool FolderExists(string folderName)
+        public Task<bool> FolderExists(string folderName)
         {
             var path = System.IO.Path.Combine(Path, folderName);
             bool isDirectory = false;
             var result = NSFileManager.DefaultManager.FileExists(path, ref isDirectory);
             if (!isDirectory)
-                return false;
-            return result;
+                return Task.FromResult(false);
+            return Task.FromResult(result);
         }
         #endregion
 

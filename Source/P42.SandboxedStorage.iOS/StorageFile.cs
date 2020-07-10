@@ -206,7 +206,7 @@ namespace P42.SandboxedStorage.Native
             if (!await ((StorageFolder)destinationFolder).StartAccess())
                 return null;
 
-            if (destinationFolder.FileExists(desiredNewName))
+            if (await destinationFolder.FileExists(desiredNewName))
             {
                 ((StorageFolder)destinationFolder).StopAccess();
                 throw new AccessViolationException("File [" + desiredNewName + "] aready exists in folder [" + destinationFolder.Path + "]");
