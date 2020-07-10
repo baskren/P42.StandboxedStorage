@@ -174,27 +174,39 @@ namespace P42.SandboxedStorage.Native
 
         protected static async Task<StorageItem> RequestAccess<T>(string path)
         {
-            ContentDialog requestAccessDialog = new ContentDialog
+            TaskCompletionSource<StorageItem> tcs = new TaskCompletionSource<StorageItem>();
+
+            Xamarin.Forms.Device.BeginInvokeOnMainThread(async () =>
             {
-                Title = "Access Requested",
-                Content =  "Access to "+path+" is needed to continue.  Click [Find] to locate and grant access.",
-                PrimaryButtonText = "Find",
-                CloseButtonText = "Ok"
-            };
-            if (ContentDialogResult.Primary == await requestAccessDialog.ShowAsync())
-            {
-                if (typeof(T) == typeof(StorageFile))
+                ContentDialog requestAccessDialog = new ContentDialog
                 {
-                    if (await FilePicker.PickSingleFileAsync() is StorageFile storageFile)
-                        return storageFile;
-                }
-                else
+                    Title = "Access Requested",
+                    Content = "Access to " + path + " is needed to continue.  Click [Find] to locate and grant access.",
+                    PrimaryButtonText = "Find",
+                    CloseButtonText = "Ok"
+                };
+                if (ContentDialogResult.Primary == await requestAccessDialog.ShowAsync())
                 {
-                    if (await FolderPicker.PickSingleFolderAsync() is StorageFolder storageFolder)
-                        return storageFolder;
+                    if (typeof(T) == typeof(StorageFile))
+                    {
+                        if (await FilePicker.PickSingleFileAsync() is StorageFile storageFile)
+                        {
+                            tcs.SetResult(storageFile);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        if (await FolderPicker.PickSingleFolderAsync() is StorageFolder storageFolder)
+                        {
+                            tcs.SetResult(storageFolder);
+                            return;
+                        }
+                    }
                 }
-            }
-            return null;
+                tcs.SetResult(null);
+            });
+            return await tcs.Task;
         }
 
         protected void AddToFutureAccessList()
