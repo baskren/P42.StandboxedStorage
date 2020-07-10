@@ -61,12 +61,6 @@ namespace P42.SandboxedStorage
         bool Exists();
 
         /// <summary>
-        /// Can the item be deleted?
-        /// </summary>
-        /// <returns></returns>
-        bool CanDelete();
-
-        /// <summary>
         /// Gets the parent folder of the current storage item.
         /// </summary>
         /// <returns></returns>

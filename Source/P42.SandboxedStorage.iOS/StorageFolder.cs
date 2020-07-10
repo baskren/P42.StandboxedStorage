@@ -35,8 +35,6 @@ namespace P42.SandboxedStorage.Native
     /// </remarks>
     class StorageFolder : StorageItem, IStorageFolder, IEquatable<StorageFolder>
     {
-        // PIZZA
-
         /// <summary>
         /// Gets a StorageFile object to represent the file at the specified path.
         /// </summary>
@@ -71,7 +69,7 @@ namespace P42.SandboxedStorage.Native
         {
             if (await base.RequestAccess(message))
             {
-                if (await FolderPicker.PickSingleFolderAsync(this) is IStorageFolder iStorageFolder && iStorageFolder is StorageFolder storageFolder)
+                if (await FolderPicker.PickSingleFolderAsync(this) is StorageFolder storageFolder)
                 {
                     var bm = storageFolder.Url.GetOrCreateBookmark();
                     Url = bm.NewUrl ?? Url;
@@ -82,6 +80,7 @@ namespace P42.SandboxedStorage.Native
             return false;
         }
         #endregion
+
 
         #region IStorageFolder
 

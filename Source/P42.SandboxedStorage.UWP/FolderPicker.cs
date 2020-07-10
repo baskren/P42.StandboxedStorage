@@ -11,12 +11,14 @@ namespace P42.SandboxedStorage.Native
     {
         public static async Task<IStorageFolder> PickSingleFolderAsync()
         {
-            var picker = new Windows.Storage.Pickers.FolderPicker();
+            var picker = new Windows.Storage.Pickers.FolderPicker
+            {
+                CommitButtonText = "Grant Access",
+            };
             picker.FileTypeFilter.Add("*");
             if (await picker.PickSingleFolderAsync() is Windows.Storage.StorageFolder windowsFolder)
             {
-                Windows.Storage.AccessCache.StorageApplicationPermissions.MostRecentlyUsedList.Add(windowsFolder, windowsFolder.Path);
-                return new StorageFolder(windowsFolder);
+                return new StorageFolder(windowsFolder, true);
             }
             return null;
         }

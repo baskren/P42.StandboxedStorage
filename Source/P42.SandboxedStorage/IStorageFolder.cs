@@ -36,11 +36,11 @@ namespace P42.SandboxedStorage
         #region Methods
 
         #region Exists
-        bool ItemExists(string itemName);
+        Task<bool> ItemExists(string itemName);
 
-        bool FileExists(string fileName);
+        Task<bool> FileExists(string fileName);
 
-        bool FolderExists(string folderName);
+        Task<bool> FolderExists(string folderName);
         #endregion
 
 

@@ -20,8 +20,8 @@ namespace P42.SandboxedStorage.Native
                 picker.FileTypeFilter.Add("*");
             if (await picker.PickSingleFileAsync() is Windows.Storage.StorageFile windowsFile)
             {
-                Windows.Storage.AccessCache.StorageApplicationPermissions.MostRecentlyUsedList.Add(windowsFile, windowsFile.Path);
-                return new StorageFile(windowsFile);
+                //Windows.Storage.AccessCache.StorageApplicationPermissions.MostRecentlyUsedList.Add(windowsFile, windowsFile.Path);
+                return new StorageFile(windowsFile, true);
             }
 
             return null;
@@ -39,8 +39,8 @@ namespace P42.SandboxedStorage.Native
             //    picker.FileTypeChoices.Add()
             if (await picker.PickSaveFileAsync() is Windows.Storage.StorageFile windowsFile)
             {
-                Windows.Storage.AccessCache.StorageApplicationPermissions.MostRecentlyUsedList.Add(windowsFile, windowsFile.Path);
-                return new StorageFile(windowsFile);
+                //Windows.Storage.AccessCache.StorageApplicationPermissions.MostRecentlyUsedList.Add(windowsFile, windowsFile.Path);
+                return new StorageFile(windowsFile, true);
             }
 
             return null;
