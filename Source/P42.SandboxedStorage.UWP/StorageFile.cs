@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using P42.SandboxedStorage;
 using Windows.Storage;
 using Windows.UI.Xaml;
+using Windows.UI.Xaml.Controls;
+using Windows.Web.Syndication;
 
 namespace P42.SandboxedStorage.Native
 {
@@ -199,16 +201,19 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            //await Windows.Storage.FileIO.AppendLinesAsync(_file, lines, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
-            await TryNativeMethod(this, cancellationToken, async (f, t) => await FileIO.AppendLinesAsync(f._file, lines, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(t));
+            if (await TryGetEncodingAsync() is Windows.Storage.Streams.UnicodeEncoding encoding)
+
+                //await Windows.Storage.FileIO.AppendLinesAsync(_file, lines, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
+                await TryNativeMethod(this, cancellationToken, async (f, t) => await FileIO.AppendLinesAsync(f._file, lines, encoding).AsTask(t));
         }
 
         public async Task AppendAllTextAsync(string contents, System.Threading.CancellationToken cancellationToken = default)
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            //await Windows.Storage.FileIO.AppendTextAsync(_file, contents, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
-            await TryNativeMethod(this, cancellationToken, async (f, t) => await FileIO.AppendTextAsync(_file, contents, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(t));
+            if (await TryGetEncodingAsync() is Windows.Storage.Streams.UnicodeEncoding encoding)
+                //await Windows.Storage.FileIO.AppendTextAsync(_file, contents, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
+                await TryNativeMethod(this, cancellationToken, async (f, t) => await FileIO.AppendTextAsync(_file, contents, encoding).AsTask(t));
         }
 
         public async Task<byte[]> ReadAllBytesAsync(System.Threading.CancellationToken cancellationToken = default)
@@ -226,10 +231,33 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            //var result = await Windows.Storage.FileIO.ReadLinesAsync(_file, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
-            var result = await TryNativeMethod(this, cancellationToken, async (f, t) => await FileIO.ReadLinesAsync(_file, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(t));
-            if (result is IList<string> list)
-                return list.ToArray();
+            /*
+            if (await TryGetEncodingAsync() is Windows.Storage.Streams.UnicodeEncoding encoding)
+            {
+
+                //var result = await Windows.Storage.FileIO.ReadLinesAsync(_file, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
+                var result = await TryNativeMethod(this, cancellationToken, async (f, t) => await FileIO.ReadLinesAsync(_file, encoding).AsTask(t));
+                if (result is IList<string> list)
+                    return list.ToArray();
+            }
+            */
+            if (await TryNativeMethod(this, async (f) => await f._file.OpenStreamForReadAsync()) is Stream stream)
+            {
+                List<string> lines = new List<string>();
+                using (var reader = new StreamReader(stream))
+                {
+                    while (!reader.EndOfStream)
+                    {
+                        if (reader.ReadLine() is string line)
+                            lines.Add(line);
+                    }
+                }
+
+                stream.Close();
+                stream.Dispose();
+                return lines.ToArray();
+            }
+
             return null;
         }
 
@@ -237,10 +265,17 @@ namespace P42.SandboxedStorage.Native
         {
             await Task.Delay(5).ConfigureAwait(false);
 
-            //var text = await Windows.Storage.FileIO.ReadTextAsync(_file, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(cancellationToken);
-            var result = await TryNativeMethod(this, cancellationToken, async (f, t) => await FileIO.ReadTextAsync(_file, Windows.Storage.Streams.UnicodeEncoding.Utf8).AsTask(t));
-            if (result is string text)
+            if (await TryNativeMethod(this, async (f) => await f._file.OpenStreamForReadAsync()) is Stream stream)
+            {
+                string text = null;
+                using (var reader = new StreamReader(stream))
+                {
+                    text = reader.ReadToEnd();
+                }
+                stream.Close();
+                stream.Dispose();
                 return text;
+            }
             return null;
         }
 
@@ -270,6 +305,55 @@ namespace P42.SandboxedStorage.Native
 
         #endregion
 
+
+        /// <summary>
+        /// Determines a text file's encoding by analyzing its byte order mark (BOM).
+        /// Defaults to ASCII when detection of the text file's endianness fails.
+        /// </summary>
+        /// <param name="filename">The text file to analyze.</param>
+        /// <returns>The detected encoding.</returns>
+        async Task<Windows.Storage.Streams.UnicodeEncoding?> TryGetEncodingAsync()
+        {
+            // Read the BOM
+            var bom = new byte[4];
+            /*
+            using (var file = new FileStream(filename, FileMode.Open, FileAccess.Read))
+            {
+                file.Read(bom, 0, 4);
+            }
+            */
+
+            if ( await TryNativeMethod(this, async (f) => await f._file.OpenStreamForReadAsync()) is Stream stream)
+            {
+                stream.Read(bom, 0, 4);
+                stream.Close();
+                stream.Dispose();
+
+                // Analyze the BOM
+                if (bom[0] == 0xef && bom[1] == 0xbb && bom[2] == 0xbf) return Windows.Storage.Streams.UnicodeEncoding.Utf8; // Encoding.UTF8;
+                if (bom[0] == 0xff && bom[1] == 0xfe) return Windows.Storage.Streams.UnicodeEncoding.Utf16LE; //Encoding.Unicode; //UTF-16LE
+                if (bom[0] == 0xfe && bom[1] == 0xff) return Windows.Storage.Streams.UnicodeEncoding.Utf16BE;//Encoding.BigEndianUnicode; //UTF-16BE
+                /*
+                if (bom[0] == 0x2b && bom[1] == 0x2f && bom[2] == 0x76) return null; //Encoding.UTF7;
+                if (bom[0] == 0xff && bom[1] == 0xfe && bom[2] == 0 && bom[3] == 0) return null; //Encoding.UTF32; //UTF-32LE
+                if (bom[0] == 0 && bom[1] == 0 && bom[2] == 0xfe && bom[3] == 0xff) return null; // new UTF32Encoding(true, true);  //UTF-32BE
+                */
+                // We actually have no idea what the encoding is if we reach this point, so
+                // you may wish to return null instead of defaulting to ASCII
+
+                ContentDialog contentDialog = new ContentDialog
+                {
+                    Title = "Incompatible Encoding",
+                    Content = "The encoding of the file [" + Path + "] is not compatible with Windows UWP Apps.  SUGGESTION: Use a tool like Notepad++ to convert this file to Utf8 or Utf16",
+                    CloseButtonText = "OK"
+                };
+
+                await contentDialog.ShowAsync();
+
+                return null;// Encoding.ASCII;
+            }
+            return null;
+        }
 
 
     }
