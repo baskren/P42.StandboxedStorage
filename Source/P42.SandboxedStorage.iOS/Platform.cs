@@ -15,6 +15,8 @@ namespace P42.SandboxedStorage
 
             PlatformDelegate.PickFolderAsync = Native.FolderPicker.PickSingleFolderAsync;
 
+            PlatformDelegate.PickSaveAsFileAsync = Native.FilePicker.PickSaveAsFileAsync;
+
             PlatformDelegate.Initiated = true;
         }
 

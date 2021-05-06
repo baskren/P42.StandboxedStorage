@@ -65,8 +65,10 @@ namespace P42.SandboxedStorage.Native
 
 
         #region Private Methods
+        /*
         internal override async Task<bool> RequestAccess(string message)
         {
+
             if (await base.RequestAccess(message))
             {
                 if (await FolderPicker.PickSingleFolderAsync(this) is StorageFolder storageFolder)
@@ -79,6 +81,7 @@ namespace P42.SandboxedStorage.Native
             }
             return false;
         }
+        */
         #endregion
 
 

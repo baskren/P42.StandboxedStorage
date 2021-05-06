@@ -110,7 +110,11 @@ namespace P42.SandboxedStorage.Native
         /// <summary>
         /// What to do if access is denied?
         /// </summary>
-        public AccessDenialResponse AccessDenialResponse { get; set; }
+        public AccessDenialResponse AccessDenialResponse
+        {
+            get;
+            set;
+        } = AccessDenialResponse.RequestAccess;
         #endregion
 
 
@@ -159,9 +163,11 @@ namespace P42.SandboxedStorage.Native
             Url = NSUrl.CreateFileUrl(path, null);
             if (makeBookmark)
                 Bookmark = Url.CreateBookmark();
+            if (Bookmark is null)
+                pendingBookmark = makeBookmark;
         }
 
-
+        protected bool pendingBookmark;
         public StorageItem(NSUrl url, bool makeBookmark = false)
         {
             Url = url;
@@ -169,6 +175,8 @@ namespace P42.SandboxedStorage.Native
                 throw new ArgumentException("Cannot initialize Native.StorageItem for URL [" + url + "].");
             if (makeBookmark)
                 Bookmark = Url.CreateBookmark();
+            if (Bookmark is null)
+                pendingBookmark = makeBookmark;
         }
         #endregion
 
@@ -232,6 +240,9 @@ namespace P42.SandboxedStorage.Native
 
         internal void StopAccess()
         {
+            if (pendingBookmark)
+                Bookmark = Url.CreateBookmark();
+            pendingBookmark = false;
             if (GetBookmarkedItem() is StorageItem item)
                 item.Url.StopAccessingSecurityScopedResource();
         }
@@ -303,11 +314,13 @@ namespace P42.SandboxedStorage.Native
             return result;
         }
 
-        public bool CanDelete()
-        {
-            var result = NSFileManager.DefaultManager.IsDeletableFile(Path);
-            return result;
-        }
+        public bool CanDelete => NSFileManager.DefaultManager.IsDeletableFile(Path);
+
+        public bool CanRead => NSFileManager.DefaultManager.IsReadableFile(Path);
+
+        public bool CanWrite => NSFileManager.DefaultManager.IsWritableFile(Path);
+
+
 
         /// <summary>
         /// Determines whether the current <see cref="StorageFile"/> matches the specified <see cref="StorageItemTypes"/> value.
@@ -359,7 +372,7 @@ namespace P42.SandboxedStorage.Native
             if (!await StartAccess())
                 return;
 
-            if (!CanDelete())
+            if (!CanDelete)
                 ThrowAccessException("You do not have ability to delete storage item [" + Path + "]");
 
             await Task.Delay(5).ConfigureAwait(false);

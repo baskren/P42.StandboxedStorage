@@ -21,8 +21,9 @@ namespace P42.SandboxedStorage
 
         public static AccessDenialResponse Value(this AccessDenialResponse accessDenialResponse)
         {
-            if (accessDenialResponse == AccessDenialResponse.GlobalDefault)
+            if (accessDenialResponse == AccessDenialResponse.GlobalDefault || accessDenialResponse == AccessDenialResponse.Exception)
                 return PlatformDelegate.DefaultAccessDenialResponse;
+                //return AccessDenialResponse.RequestAccess;
             return accessDenialResponse;
         }
 

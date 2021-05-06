@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using MobileCoreServices;
 using AppKit;
+using Foundation;
 
 namespace P42.SandboxedStorage.Native
 {
@@ -65,5 +66,54 @@ namespace P42.SandboxedStorage.Native
             System.Diagnostics.Debug.WriteLine("panel.Url.Path: " + panel.Url.Path);
             return Task.FromResult<IStorageFile>(new StorageFile(panel.Url, true));
         }
+
+        internal static async Task<IStorageFile> PickSaveAsFileAsync(string defaultFileExtension = null, IDictionary<string, IList<string>> fileTypeChoices = null)
+        {
+            return await MainThread.InvokeOnMainThread(async () =>
+            {
+                var tcs = new TaskCompletionSource<IStorageFile>();
+                var panel = new NSSavePanel
+                {
+                    Title = "Save As ...",
+                    CanCreateDirectories = true,
+                };
+                if (!string.IsNullOrWhiteSpace(defaultFileExtension))
+                    panel.AllowedContentTypes = new UniformTypeIdentifiers.UTType[]
+                    {
+                    //UTType.CreatePreferredIdentifier(UTType.TagClassFilenameExtension, defaultFileExtension, null)
+                    UniformTypeIdentifiers.UTType.CreateFromExtension(defaultFileExtension)
+                    };
+
+                panel.Begin(button =>
+                {
+                    if (button == (int)NSPanelButtonType.Ok)
+                    {
+                        if (panel.Url != null && panel.Url.IsFileUrl)
+                        {
+                            var result = new StorageFile(panel.Url, true);
+                            tcs.SetResult(result);
+                            return;
+                        }
+                    }
+                    tcs.SetResult(null);
+                });
+
+                return await tcs.Task;
+            });
+        }
+
+        static void PlatformBeginInvokeOnMainThread(Action action)
+        {
+            NSRunLoop.Main.BeginInvokeOnMainThread(action.Invoke);
+        }
+
+        internal static T InvokeOnMainThread<T>(Func<T> factory)
+        {
+            T value = default;
+            NSRunLoop.Main.InvokeOnMainThread(() => value = factory());
+            return value;
+        }
+
     }
+
 }

@@ -64,7 +64,9 @@ namespace P42.SandboxedStorage.Native
         #region Constructors
         public StorageFile(string path, bool makeBookmark = false) : base(path, makeBookmark) { }
 
-        public StorageFile(NSUrl url, bool makeBookmark = false) : base(url, makeBookmark) { }
+        public StorageFile(NSUrl url, bool makeBookmark = false) : base(url, makeBookmark)
+        {
+        }
         #endregion
 
         /*
@@ -103,10 +105,6 @@ namespace P42.SandboxedStorage.Native
         }
         */
 
-        bool CanRead => NSFileManager.DefaultManager.IsReadableFile(Path);
-
-        bool CanWrite => NSFileManager.DefaultManager.IsWritableFile(Path);
-
         internal async Task<bool> StartReadAccess(Action action = null)
         {
             if (!await StartAccess())
@@ -131,6 +129,14 @@ namespace P42.SandboxedStorage.Native
 
         internal async Task<bool> StartWriteAccess(Action action = null)
         {
+            if (!Exists() && GetParent() is StorageFolder folder)
+            {
+                if (folder.CanWrite)
+                    return true;
+                await folder.RequestAccess(folder.Path);
+                return folder.CanWrite;
+            }
+
             if (!await StartAccess())
                 return false;
 

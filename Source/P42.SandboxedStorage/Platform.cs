@@ -13,7 +13,7 @@ namespace P42.SandboxedStorage
 {
     internal static class PlatformDelegate
     {
-        static AccessDenialResponse _defaultAccessDenialResponse = AccessDenialResponse.Exception;
+        static AccessDenialResponse _defaultAccessDenialResponse = AccessDenialResponse.RequestAccess; //AccessDenialResponse.Exception;
         public static AccessDenialResponse DefaultAccessDenialResponse
         {
             get => _defaultAccessDenialResponse;
